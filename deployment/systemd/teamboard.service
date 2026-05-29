@@ -1,0 +1,15 @@
+[Unit]
+Description=Team Board Django API
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/teamboard/backend
+EnvironmentFile=/var/www/teamboard/.env
+ExecStart=/var/www/teamboard/.venv/bin/gunicorn taskboard.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 60
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

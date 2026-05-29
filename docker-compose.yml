@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: teamboard-db
+    environment:
+      POSTGRES_DB: teamboard
+      POSTGRES_USER: teamboard
+      POSTGRES_PASSWORD: teamboard
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U teamboard -d teamboard']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
