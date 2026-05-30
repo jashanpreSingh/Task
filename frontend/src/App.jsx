@@ -4,12 +4,22 @@ const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//
 const roleFilterOptions = ['All', 'Admin', 'Manager', 'Member']
 const statuses = ['Backlog', 'In Progress', 'Blocked', 'Done']
 const leaderRoles = ['Admin', 'Manager']
+const todayValue = () => new Date().toISOString().slice(0, 10)
+const monthValue = () => new Date().toISOString().slice(0, 7)
+const taskPoints = {
+  Backlog: 0,
+  'In Progress': 4,
+  Blocked: 1,
+  Done: 10,
+}
 
 const initialTaskForm = {
   task: '',
   owner: '',
   status: 'In Progress',
   blocker: '',
+  start_time: '',
+  end_time: '',
 }
 
 const initialAuthForm = {
@@ -52,14 +62,6 @@ const fetchJson = async (url, options = {}) => {
 }
 
 const statusClass = (status) => status.toLowerCase().replace(/\s+/g, '-')
-const isToday = (dateValue) => {
-  const date = new Date(dateValue)
-  const now = new Date()
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate()
-}
-
 function App() {
   const [user, setUser] = useState(null)
   const [authMode, setAuthMode] = useState('login')
@@ -67,34 +69,48 @@ function App() {
   const [authMessage, setAuthMessage] = useState('')
   const [tasks, setTasks] = useState([])
   const [summary, setSummary] = useState({ completed: 0, pending_blockers: 0, in_progress: 0 })
+  const [monthlyReport, setMonthlyReport] = useState(null)
+  const [members, setMembers] = useState([])
   const [messages, setMessages] = useState([])
   const [taskForm, setTaskForm] = useState(initialTaskForm)
   const [chatForm, setChatForm] = useState(initialChatForm)
   const [standupForm, setStandupForm] = useState(initialStandupForm)
   const [filterRole, setFilterRole] = useState('All')
   const [taskScope, setTaskScope] = useState('team')
+  const [selectedDate, setSelectedDate] = useState(todayValue)
+  const [selectedMonth, setSelectedMonth] = useState(monthValue)
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const chatEndRef = useRef(null)
 
-  const loadTasks = async () => {
-    const { response, data } = await fetchJson(`${API_BASE}/tasks/`)
+  const loadTasks = async (date = selectedDate) => {
+    const { response, data } = await fetchJson(`${API_BASE}/tasks/?date=${date}`)
     if (response.ok) setTasks(data)
   }
 
-  const loadSummary = async () => {
-    const { response, data } = await fetchJson(`${API_BASE}/tasks/summary/`)
+  const loadSummary = async (date = selectedDate) => {
+    const { response, data } = await fetchJson(`${API_BASE}/tasks/summary/?date=${date}`)
     if (response.ok) setSummary(data)
   }
 
-  const loadMessages = async () => {
-    const { response, data } = await fetchJson(`${API_BASE}/messages/`)
+  const loadMessages = async (date = selectedDate) => {
+    const { response, data } = await fetchJson(`${API_BASE}/messages/?date=${date}`)
     if (response.ok) setMessages(data)
   }
 
-  const refreshData = async (includeMessages = Boolean(user)) => {
-    const loaders = [loadTasks(), loadSummary()]
-    if (includeMessages) loaders.push(loadMessages())
+  const loadMembers = async () => {
+    const { response, data } = await fetchJson(`${API_BASE}/members/`)
+    if (response.ok) setMembers(data)
+  }
+
+  const loadMonthlyReport = async (month = selectedMonth) => {
+    const { response, data } = await fetchJson(`${API_BASE}/tasks/monthly-report/?month=${month}`)
+    if (response.ok) setMonthlyReport(data)
+  }
+
+  const refreshData = async (includeMessages = Boolean(user), date = selectedDate) => {
+    const loaders = [loadTasks(date), loadSummary(date), loadMonthlyReport()]
+    if (includeMessages) loaders.push(loadMessages(date), loadMembers())
     await Promise.all(loaders)
   }
 
@@ -106,23 +122,28 @@ function App() {
         setUser(data)
         setTaskForm((current) => ({ ...current, owner: data.display_name }))
         setTaskScope(leaderRoles.includes(data.role) ? 'team' : 'mine')
-        const [tasksResult, summaryResult, messagesResult] = await Promise.all([
-          fetchJson(`${API_BASE}/tasks/`),
-          fetchJson(`${API_BASE}/tasks/summary/`),
-          fetchJson(`${API_BASE}/messages/`),
+        const [tasksResult, summaryResult, messagesResult, membersResult, reportResult] = await Promise.all([
+          fetchJson(`${API_BASE}/tasks/?date=${selectedDate}`),
+          fetchJson(`${API_BASE}/tasks/summary/?date=${selectedDate}`),
+          fetchJson(`${API_BASE}/messages/?date=${selectedDate}`),
+          fetchJson(`${API_BASE}/members/`),
+          fetchJson(`${API_BASE}/tasks/monthly-report/?month=${selectedMonth}`),
         ])
         if (tasksResult.response.ok) setTasks(tasksResult.data)
         if (summaryResult.response.ok) setSummary(summaryResult.data)
         if (messagesResult.response.ok) setMessages(messagesResult.data)
+        if (membersResult.response.ok) setMembers(membersResult.data)
+        if (reportResult.response.ok) setMonthlyReport(reportResult.data)
       } else {
         setUser(null)
         setTasks([])
         setMessages([])
+        setMembers([])
       }
     }
 
     bootstrap()
-  }, [])
+  }, [selectedDate, selectedMonth])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -152,24 +173,47 @@ function App() {
   }, [visibleTasks])
 
   const dailyProgress = useMemo(() => {
-    const todaysTasks = tasks.filter((task) => isToday(task.created_at) || isToday(task.updated_at))
-    const total = todaysTasks.length
-    const done = todaysTasks.filter((task) => task.status === 'Done').length
-    const active = todaysTasks.filter((task) => task.status === 'In Progress').length
-    const blocked = todaysTasks.filter((task) => task.status === 'Blocked').length
+    const selectedDay = new Date(`${selectedDate}T00:00:00`)
+    const isSunday = selectedDay.getDay() === 0
+    const total = tasks.length
+    const done = tasks.filter((task) => task.status === 'Done').length
+    const active = tasks.filter((task) => task.status === 'In Progress').length
+    const blocked = tasks.filter((task) => task.status === 'Blocked').length
     const percent = total ? Math.round((done / total) * 100) : 0
-    const memberMap = todaysTasks.reduce((grouped, task) => {
+    const memberMap = tasks.reduce((grouped, task) => {
       const owner = task.owner || 'Unassigned'
       if (!grouped[owner]) {
-        grouped[owner] = { owner, total: 0, done: 0, active: 0, blocked: 0 }
+        grouped[owner] = { owner, total: 0, done: 0, active: 0, blocked: 0, points: 0 }
       }
 
       grouped[owner].total += 1
+      grouped[owner].points += taskPoints[task.status] || 0
       if (task.status === 'Done') grouped[owner].done += 1
       if (task.status === 'In Progress') grouped[owner].active += 1
       if (task.status === 'Blocked') grouped[owner].blocked += 1
+      if (task.status === 'Done' && task.created_at && task.updated_at) {
+        const created = new Date(task.created_at)
+        const updated = new Date(task.updated_at)
+        const hours = (updated - created) / (1000 * 60 * 60)
+        if (hours <= 4) grouped[owner].points += 5
+        else if (hours <= 8) grouped[owner].points += 3
+      }
       return grouped
     }, {})
+
+    const knownMembers = members.length
+      ? members.map((member) => member.display_name || member.username)
+      : Object.keys(memberMap)
+
+    const memberRows = knownMembers.map((owner) => {
+      const row = memberMap[owner] || { owner, total: 0, done: 0, active: 0, blocked: 0, points: 0 }
+      const attendance = isSunday ? 'Holiday' : row.total > 0 ? 'Present' : 'Absent'
+      return { ...row, owner, attendance }
+    })
+
+    const present = memberRows.filter((member) => member.attendance === 'Present').length
+    const absent = memberRows.filter((member) => member.attendance === 'Absent').length
+    const holiday = memberRows.filter((member) => member.attendance === 'Holiday').length
 
     return {
       total,
@@ -177,11 +221,15 @@ function App() {
       active,
       blocked,
       percent,
-      members: Object.values(memberMap).sort((a, b) => b.total - a.total || a.owner.localeCompare(b.owner)),
+      present,
+      absent,
+      holiday,
+      isSunday,
+      members: memberRows.sort((a, b) => b.points - a.points || b.total - a.total || a.owner.localeCompare(b.owner)),
     }
-  }, [tasks])
+  }, [members, selectedDate, tasks])
 
-  const today = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date())
+  const today = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${selectedDate}T00:00:00`))
   const flowCopy = isLeader
     ? 'Assign work, spot blockers, and move the team forward.'
     : 'See your tasks, update progress, and flag blockers fast.'
@@ -189,6 +237,19 @@ function App() {
   const handleTaskChange = (event) => {
     const { name, value } = event.target
     setTaskForm((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleDateChange = (event) => {
+    const date = event.target.value
+    setSelectedDate(date)
+  }
+
+  const handleMonthChange = async (event) => {
+    const month = event.target.value
+    setSelectedMonth(month)
+    if (user) {
+      await loadMonthlyReport(month)
+    }
   }
 
   const handleAuthChange = (event) => {
@@ -255,7 +316,10 @@ function App() {
       const payload = {
         ...taskForm,
         owner: taskForm.owner || displayName,
+        work_date: selectedDate,
       }
+      if (!payload.start_time) delete payload.start_time
+      if (!payload.end_time) delete payload.end_time
 
       const { response } = await fetchJson(`${API_BASE}/tasks/`, {
         method: 'POST',
@@ -302,7 +366,7 @@ function App() {
     try {
       const { response, data } = await fetchJson(`${API_BASE}/messages/`, {
         method: 'POST',
-        body: JSON.stringify(chatForm),
+        body: JSON.stringify({ ...chatForm, work_date: selectedDate }),
       })
 
       if (!response.ok) throw new Error('Could not send message')
@@ -324,7 +388,7 @@ function App() {
     try {
       const { response, data } = await fetchJson(`${API_BASE}/messages/`, {
         method: 'POST',
-        body: JSON.stringify({ content, audience }),
+        body: JSON.stringify({ content, audience, work_date: selectedDate }),
       })
 
       if (!response.ok) throw new Error('Could not send update')
@@ -352,7 +416,7 @@ function App() {
     try {
       const { response } = await fetchJson(`${API_BASE}/standups/`, {
         method: 'POST',
-        body: JSON.stringify(standupForm),
+        body: JSON.stringify({ ...standupForm, work_date: selectedDate }),
       })
 
       if (!response.ok) throw new Error('Could not save standup')
@@ -441,6 +505,14 @@ function App() {
           <p>{flowCopy}</p>
         </div>
         <div className="user-menu">
+          <label className="date-picker">
+            Work date
+            <input type="date" value={selectedDate} onChange={handleDateChange} />
+          </label>
+          <label className="date-picker">
+            Report month
+            <input type="month" value={selectedMonth} onChange={handleMonthChange} />
+          </label>
           <span>{displayName}</span>
           <strong>{user.role}</strong>
           <button type="button" onClick={handleLogout}>Logout</button>
@@ -526,6 +598,11 @@ function App() {
                 <p className="eyebrow">Daily progress</p>
                 <h2>{dailyProgress.percent}% complete today</h2>
                 <p>{dailyProgress.done} done, {dailyProgress.active} in progress, {dailyProgress.blocked} blocked</p>
+                <div className="attendance-summary">
+                  <span className="present">{dailyProgress.present} present</span>
+                  <span className="absent">{dailyProgress.absent} absent</span>
+                  <span className="holiday">{dailyProgress.holiday} holiday</span>
+                </div>
               </div>
               <div className="progress-ring" style={{ '--progress': `${dailyProgress.percent}%` }}>
                 <span>{dailyProgress.percent}%</span>
@@ -545,6 +622,10 @@ function App() {
                       <strong>{member.owner}</strong>
                       <span>{member.done}/{member.total} done</span>
                     </div>
+                    <div className="member-meta-row">
+                      <span className={`attendance-pill ${member.attendance.toLowerCase()}`}>{member.attendance}</span>
+                      <span className="points-pill">{member.points} pts</span>
+                    </div>
                     <div className="mini-progress">
                       <span style={{ width: `${memberPercent}%` }}></span>
                     </div>
@@ -556,6 +637,50 @@ function App() {
           </section>
         ) : null}
       </section>
+
+      {monthlyReport ? (
+        <section className="monthly-report panel" aria-label="Monthly report">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Monthly report</p>
+              <h2>{isLeader ? 'Team month view' : 'My month view'}</h2>
+            </div>
+            <span className="count-pill">{monthlyReport.month}</span>
+          </div>
+
+          <div className="monthly-stats">
+            <article><span>Total</span><strong>{monthlyReport.total}</strong></article>
+            <article><span>Done</span><strong>{monthlyReport.done}</strong></article>
+            <article><span>Active</span><strong>{monthlyReport.in_progress}</strong></article>
+            <article><span>Blocked</span><strong>{monthlyReport.blocked}</strong></article>
+          </div>
+
+          <div className="report-grid">
+            <div>
+              <h3>{isLeader ? 'Members' : 'Progress'}</h3>
+              <div className="report-list">
+                {monthlyReport.members.length ? monthlyReport.members.map((member) => (
+                  <article className="report-row" key={member.owner}>
+                    <strong>{member.owner}</strong>
+                    <span>{member.present_days} present · {member.absent_days} absent · {member.done}/{member.total} done · {member.points} pts</span>
+                  </article>
+                )) : <p className="empty-state">No work recorded this month.</p>}
+              </div>
+            </div>
+            <div>
+              <h3>Projects</h3>
+              <div className="report-list">
+                {monthlyReport.projects.length ? monthlyReport.projects.map((project) => (
+                  <article className="report-row" key={project.project}>
+                    <strong>{project.project}</strong>
+                    <span>{project.done}/{project.total} done · {project.points} pts</span>
+                  </article>
+                )) : <p className="empty-state">No project work this month.</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="work-grid">
         <form className="quick-add panel" onSubmit={handleTaskSubmit}>
@@ -584,6 +709,21 @@ function App() {
             <select name="status" value={taskForm.status} onChange={handleTaskChange}>
               {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
+          </label>
+
+          <label>
+            Date
+            <input type="date" value={selectedDate} onChange={handleDateChange} />
+          </label>
+
+          <label>
+            From
+            <input name="start_time" type="time" value={taskForm.start_time} onChange={handleTaskChange} />
+          </label>
+
+          <label>
+            To
+            <input name="end_time" type="time" value={taskForm.end_time} onChange={handleTaskChange} />
           </label>
 
           <label className="span-2">
@@ -667,7 +807,7 @@ function App() {
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Team</p>
-            <h2>Updates</h2>
+            <h2>Daily updates</h2>
           </div>
           <div className="role-filters">
             {roleFilterOptions.map((role) => (

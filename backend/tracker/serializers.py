@@ -20,6 +20,9 @@ class TaskSerializer(serializers.ModelSerializer):
             'assigned_to_name',
             'project',
             'project_name',
+            'work_date',
+            'start_time',
+            'end_time',
             'status',
             'blocker',
             'blocked',
@@ -67,7 +70,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ['id', 'sender', 'sender_role', 'content', 'audience', 'created_at']
+        fields = ['id', 'sender', 'sender_role', 'content', 'audience', 'work_date', 'created_at']
 
     def get_sender_role(self, obj):
         profile = getattr(obj.sender, 'profile', None)
@@ -81,7 +84,7 @@ class StandupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standup
-        fields = ['id', 'user', 'username', 'user_name', 'project', 'project_name', 'yesterday', 'today', 'blocker', 'created_at']
+        fields = ['id', 'user', 'username', 'user_name', 'project', 'project_name', 'work_date', 'yesterday', 'today', 'blocker', 'created_at']
         read_only_fields = ['user']
 
     def get_user_name(self, obj):

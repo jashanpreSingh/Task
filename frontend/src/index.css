@@ -342,6 +342,17 @@ textarea {
   justify-content: flex-end;
 }
 
+.date-picker {
+  min-width: 170px;
+  gap: 4px;
+  text-align: left;
+}
+
+.date-picker input {
+  padding: 8px 10px;
+  border-radius: 999px;
+}
+
 .user-menu span {
   font-weight: 900;
 }
@@ -529,6 +540,45 @@ textarea {
   font-weight: 700;
 }
 
+.attendance-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.attendance-summary span,
+.attendance-pill,
+.points-pill {
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.attendance-summary .present,
+.attendance-pill.present {
+  background: #eafaf5;
+  color: #137b67;
+}
+
+.attendance-summary .absent,
+.attendance-pill.absent {
+  background: #fff1f1;
+  color: #a13d3d;
+}
+
+.attendance-summary .holiday,
+.attendance-pill.holiday {
+  background: #f1f4f8;
+  color: #607082;
+}
+
+.points-pill {
+  background: #e7f1ff;
+  color: #1f58b8;
+}
+
 .progress-ring {
   width: 86px;
   height: 86px;
@@ -578,6 +628,60 @@ textarea {
   gap: 10px;
 }
 
+.monthly-report {
+  display: grid;
+  gap: 14px;
+}
+
+.monthly-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.monthly-stats article,
+.report-row {
+  border: 1px solid #dce3ec;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.monthly-stats span,
+.report-row span {
+  display: block;
+  color: #607082;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.monthly-stats strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.55rem;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-grid h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-row strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
 .member-progress {
   border: 1px solid #dce3ec;
   border-radius: 14px;
@@ -592,6 +696,12 @@ textarea {
   justify-content: space-between;
   gap: 10px;
   align-items: center;
+}
+
+.member-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
 .member-progress span,
@@ -912,6 +1022,7 @@ textarea {
   .login-panel,
   .work-grid,
   .collaboration-grid,
+  .report-grid,
   .board-grid {
     grid-template-columns: 1fr;
   }
@@ -945,6 +1056,7 @@ textarea {
   }
 
   .metrics-row,
+  .monthly-stats,
   .quick-add,
   .standup-form,
   .chat-form {
