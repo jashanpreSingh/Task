@@ -52,6 +52,7 @@ jobs:
             --exclude ".github" \
             --exclude ".env" \
             --exclude ".venv" \
+            --exclude "backend/venv" \
             --exclude "frontend/node_modules" \
             --exclude "backend/staticfiles" \
             -e "ssh -i ~/.ssh/deploy_key" \
@@ -61,11 +62,11 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
             cd '${{ secrets.SERVER_PATH }}' &&
-            python3 -m venv .venv &&
-            . .venv/bin/activate &&
-            pip install --upgrade pip &&
-            pip install -r backend/requirements.txt &&
             cd backend &&
+            python3 -m venv venv &&
+            . venv/bin/activate &&
+            pip install --upgrade pip &&
+            pip install -r requirements.txt &&
             python manage.py migrate --noinput &&
             python manage.py collectstatic --noinput &&
             sudo systemctl restart teamboard &&
