@@ -147,6 +147,21 @@ textarea:focus {
   font-size: 0.82rem;
 }
 
+.header-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.header-actions button:first-of-type,
+.header-actions button:nth-of-type(2),
+.header-actions button:nth-of-type(3) {
+  font-weight: 950;
+}
+
 .user-menu button:hover,
 .auth-switcher button:hover,
 .role-filters button:hover,
@@ -176,6 +191,16 @@ textarea:focus {
 .user-menu .learning-desk-button {
   background: #eaf2ff;
   color: #184fc7;
+}
+
+.user-menu .account-button {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.user-menu .logout-button {
+  background: #fff1f2;
+  color: #be123c;
 }
 
 .identity-pill,
@@ -762,6 +787,18 @@ textarea:focus {
   padding: 18px;
 }
 
+.login-copy p:last-child,
+.app-header p:not(.eyebrow),
+.flow-bar span,
+.daily-progress p,
+.update-note p,
+.review-update p,
+.learning-card p,
+.error-card p,
+.chat-bubble p {
+  line-height: 1.55;
+}
+
 .app-header::before {
   content: '';
   align-self: stretch;
@@ -769,6 +806,29 @@ textarea:focus {
   border-radius: 999px;
   background: linear-gradient(180deg, var(--blue), var(--teal));
   order: -1;
+}
+
+.app-header {
+  align-items: stretch;
+}
+
+.user-menu {
+  align-content: center;
+}
+
+.date-controls {
+  padding: 4px;
+  border: 1px solid rgba(119, 132, 151, 0.14);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.date-picker {
+  min-width: 148px;
+}
+
+.date-picker input {
+  min-height: 38px;
 }
 
 .header-copy .eyebrow,
@@ -907,6 +967,18 @@ textarea:focus {
   border-style: dashed;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.92));
+}
+
+.empty-state {
+  min-height: 74px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-weight: 900;
+}
+
+.lane .empty-state {
+  min-height: 120px;
 }
 
 @media (max-width: 640px) {
@@ -1627,6 +1699,18 @@ textarea {
   display: inline-grid;
   place-items: center;
   background: #de5050;
+  color: #ffffff;
+  font-size: 0.72rem;
+}
+
+.review-desk-button span {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+  background: var(--warning);
   color: #ffffff;
   font-size: 0.72rem;
 }

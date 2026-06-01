@@ -1376,18 +1376,18 @@ function App() {
                   IT Register
                 </button>
                 <button className="review-desk-button" type="button" onClick={() => setIsReviewDeskOpen(true)}>
-                  Review desk
+                  Reviews {dailyUpdateStats.pending.length ? <span>{dailyUpdateStats.pending.length}</span> : null}
                 </button>
               </>
             ) : null}
             <button className="error-desk-button" type="button" onClick={() => setIsErrorDeskOpen(true)}>
-              Error desk {openDailyErrors.length ? <span>{openDailyErrors.length}</span> : null}
+              Errors {openDailyErrors.length ? <span>{openDailyErrors.length}</span> : null}
             </button>
             <button className="learning-desk-button" type="button" onClick={openLearningDesk}>
-              Learning
+              {user.role === 'Admin' ? 'Learning' : 'My learning'}
             </button>
-            <button type="button" onClick={() => setIsPasswordModalOpen(true)}>Password</button>
-            <button type="button" onClick={handleLogout}>Logout</button>
+            <button className="account-button" type="button" onClick={() => setIsPasswordModalOpen(true)}>Account</button>
+            <button className="logout-button" type="button" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </header>
@@ -1494,7 +1494,7 @@ function App() {
                     </div>
                   ) : null}
                 </article>
-              )) : <p className="empty-state">No daily updates submitted for this date.</p>}
+              )) : <p className="empty-state">No updates for this date.</p>}
             </div>
           </section>
 
@@ -1526,7 +1526,7 @@ function App() {
                     <button type="button" onClick={() => sendStandupReminder(member, note)} disabled={loading}>Send reminder</button>
                   </article>
                 )
-              }) : <p className="empty-state">Everyone has submitted today.</p>}
+              }) : <p className="empty-state">All updates are in.</p>}
             </div>
 
             <div className="review-breakdown">
@@ -1615,7 +1615,7 @@ function App() {
                     <small>{member.active} active · {member.blocked} blocked</small>
                   </article>
                 )
-              }) : <p className="empty-state">No task movement today yet.</p>}
+              }) : <p className="empty-state">No task movement yet.</p>}
             </div>
           </section>
         ) : null}
@@ -1647,7 +1647,7 @@ function App() {
                     <strong>{member.owner}</strong>
                     <span>{member.present_days} present · {member.absent_days} absent · {member.done}/{member.total} done · {member.points} pts</span>
                   </article>
-                )) : <p className="empty-state">No work recorded this month.</p>}
+                )) : <p className="empty-state">No monthly work yet.</p>}
               </div>
             </div>
             <div>
@@ -1658,7 +1658,7 @@ function App() {
                     <strong>{project.project}</strong>
                     <span>{project.done}/{project.total} done · {project.points} pts</span>
                   </article>
-                )) : <p className="empty-state">No project work this month.</p>}
+                )) : <p className="empty-state">No project work yet.</p>}
               </div>
             </div>
           </div>
@@ -1741,7 +1741,7 @@ function App() {
                 <span>{task.owner}</span>
                 <p>{task.blocker}</p>
               </article>
-            )) : <p className="empty-state">No blockers right now.</p>}
+            )) : <p className="empty-state">No blockers.</p>}
           </div>
         </section>
       </section>
@@ -1823,7 +1823,7 @@ function App() {
                     </div>
                   </article>
                 )
-              }) : <p className="empty-state">No members available for review.</p>}
+              }) : <p className="empty-state">No members to review.</p>}
             </div>
           </section>
         </div>
@@ -1945,7 +1945,7 @@ function App() {
                       </div>
                       {entry.next_step ? <small>Next: {entry.next_step}</small> : null}
                     </article>
-                  )) : <p className="empty-state">No learning added for this view.</p>}
+                  )) : <p className="empty-state">No learning added yet.</p>}
                 </div>
               </section>
             </div>
@@ -2074,7 +2074,7 @@ function App() {
                         {notes ? <p>{notes}</p> : <p className="muted-note">Add notes so another manager can understand this quickly.</p>}
                       </article>
                     )
-                  }) : <p className="empty-state">No records found in this tab.</p>}
+                  }) : <p className="empty-state">No records found.</p>}
                 </div>
               </section>
 
@@ -2208,7 +2208,7 @@ function App() {
                       </div>
                     </div>
                   </article>
-                )) : <p className="empty-state">No application errors logged for this date.</p>}
+                )) : <p className="empty-state">No errors logged.</p>}
               </div>
             </div>
           </section>
@@ -2258,7 +2258,7 @@ function App() {
                 </article>
               ))}
 
-              {!tasksByStatus[status]?.length ? <p className="empty-state">Nothing here.</p> : null}
+              {!tasksByStatus[status]?.length ? <p className="empty-state">Empty</p> : null}
             </div>
           </section>
         ))}
@@ -2289,7 +2289,7 @@ function App() {
               </div>
               <p>{message.content}</p>
             </article>
-          )) : <p className="empty-state">No updates yet.</p>}
+          )) : <p className="empty-state">No chat updates yet.</p>}
           <div ref={chatEndRef}></div>
         </div>
 
