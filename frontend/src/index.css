@@ -11,6 +11,11 @@
   --teal: #14a58c;
   --amber: #c98310;
   --rose: #d84a56;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --violet: #7c3aed;
+  --info: #0284c7;
   --shadow-sm: 0 8px 24px rgba(17, 24, 39, 0.07);
   --shadow-md: 0 18px 48px rgba(17, 24, 39, 0.1);
   --shadow-lg: 0 30px 90px rgba(17, 24, 39, 0.16);
@@ -913,6 +918,222 @@ textarea:focus {
     width: 100%;
     height: 4px;
   }
+}
+
+/* World-class semantic color system */
+:root {
+  --surface-blue: #eff6ff;
+  --surface-green: #ecfdf5;
+  --surface-amber: #fffbeb;
+  --surface-red: #fef2f2;
+  --surface-violet: #f5f3ff;
+  --surface-sky: #f0f9ff;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32%),
+    radial-gradient(circle at top right, rgba(5, 150, 105, 0.07), transparent 28%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 52%, #e9eef5 100%);
+}
+
+.primary-button,
+.close-button,
+.absent-card button {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+}
+
+.flow-bar {
+  background:
+    linear-gradient(135deg, #0f172a 0%, #1e3a8a 56%, #047857 100%),
+    #0f172a;
+}
+
+.metrics-row article::after,
+.progress-track.large div,
+.mini-progress span,
+.learning-bar-row i {
+  background: linear-gradient(90deg, #2563eb, #059669);
+}
+
+.user-menu .error-desk-button {
+  background: linear-gradient(135deg, #0f172a, #334155);
+}
+
+.user-menu .review-desk-button,
+.attendance-summary .present,
+.attendance-pill.present {
+  background: var(--surface-green);
+  color: #047857;
+}
+
+.user-menu .it-register-button {
+  background: var(--surface-amber);
+  color: #92400e;
+}
+
+.user-menu .learning-desk-button {
+  background: var(--surface-violet);
+  color: #6d28d9;
+}
+
+.identity-pill strong,
+.count-pill,
+.points-pill {
+  background: var(--surface-blue);
+  color: #1d4ed8;
+}
+
+.attendance-summary .absent,
+.attendance-pill.absent,
+.metrics-row .needs-attention,
+.update-note.blocker,
+.error-card.severity-critical,
+.task-card.blocked {
+  background: var(--surface-red);
+  color: #991b1b;
+}
+
+.attendance-summary .holiday,
+.attendance-pill.holiday {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.review-summary span,
+.review-control > span,
+.review-breakdown span,
+.error-summary-pills span,
+.error-badges span,
+.learning-tags span,
+.scope-toggle button,
+.quick-collab button,
+.task-actions button,
+.it-record-top button,
+.it-form-actions button:not(.primary-button),
+.error-form-actions button:not(.primary-button) {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.scope-toggle button.active,
+.auth-switcher button.active,
+.role-filters button.active,
+.it-tabs button.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.update-note.primary {
+  background: var(--surface-blue);
+}
+
+.error-card.severity-medium {
+  border-left-color: var(--warning);
+  background: var(--surface-amber);
+}
+
+.error-card.severity-high {
+  border-left-color: #ea580c;
+  background: #fff7ed;
+}
+
+.error-card.severity-critical {
+  border-left-color: var(--danger);
+}
+
+.review-row {
+  border-left-color: var(--success);
+}
+
+.review-row.absent {
+  border-left-color: var(--danger);
+}
+
+.task-card.blocked {
+  border-color: rgba(220, 38, 38, 0.32);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.status-dot.in-progress,
+.status-animation.in-progress span {
+  background: #2563eb;
+}
+
+.status-dot.done,
+.done-mark {
+  background: var(--success);
+}
+
+.status-dot.blocked,
+.block-mark,
+.error-desk-button span {
+  background-color: var(--danger);
+}
+
+.status-dot.backlog {
+  background: #94a3b8;
+}
+
+.learning-summary-grid article:nth-child(1) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-blue));
+}
+
+.learning-summary-grid article:nth-child(2) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-green));
+}
+
+.learning-summary-grid article:nth-child(3) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-violet));
+}
+
+.learning-summary-grid article:nth-child(4) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-amber));
+}
+
+.monthly-stats article:nth-child(1),
+.it-summary-grid article:nth-child(1) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-blue));
+}
+
+.monthly-stats article:nth-child(2),
+.it-summary-grid article:nth-child(2) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-green));
+}
+
+.monthly-stats article:nth-child(3),
+.it-summary-grid article:nth-child(3) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-amber));
+}
+
+.monthly-stats article:nth-child(4),
+.it-summary-grid article:nth-child(4) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-sky));
+}
+
+.it-summary-grid article:nth-child(5) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-violet));
+}
+
+.it-summary-grid article.needs-attention,
+.it-summary-grid article:nth-child(6) {
+  background: linear-gradient(180deg, #ffffff, var(--surface-red));
+}
+
+.update-card::before,
+.review-row::before,
+.learning-card::before,
+.it-record-card::before,
+.error-card::before,
+.task-card::before {
+  background: linear-gradient(180deg, #2563eb, #059669);
+}
+
+.error-card.severity-critical::before,
+.task-card.blocked::before,
+.review-row.absent::before {
+  background: linear-gradient(180deg, var(--danger), var(--warning));
 }
 
 @media (prefers-reduced-motion: reduce) {
