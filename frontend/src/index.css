@@ -729,6 +729,192 @@ textarea:focus {
   }
 }
 
+/* Executive dashboard refinement */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #b9c5d4 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #b9c5d4;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: padding-box;
+}
+
+.app-shell {
+  width: min(1500px, 100%);
+  padding: 18px;
+}
+
+.app-header::before {
+  content: '';
+  align-self: stretch;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--blue), var(--teal));
+  order: -1;
+}
+
+.header-copy .eyebrow,
+.panel-heading .eyebrow {
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.header-copy h1 {
+  font-weight: 950;
+}
+
+.date-picker input,
+.identity-pill,
+.scope-toggle button,
+.count-pill,
+.attendance-pill,
+.points-pill {
+  border: 1px solid rgba(119, 132, 151, 0.2);
+}
+
+.identity-pill strong,
+.count-pill {
+  font-weight: 950;
+}
+
+.panel-heading {
+  padding-bottom: 2px;
+}
+
+.panel-heading h2,
+.lane-heading h2,
+.mini-heading strong {
+  font-weight: 950;
+}
+
+.update-feed,
+.absent-list,
+.member-progress-list,
+.report-list,
+.learning-record-list,
+.it-record-list,
+.error-list,
+.task-stack,
+.chat-stream {
+  scroll-behavior: smooth;
+}
+
+.update-card,
+.review-row,
+.learning-card,
+.it-record-card,
+.error-card,
+.task-card {
+  position: relative;
+}
+
+.update-card::before,
+.review-row::before,
+.learning-card::before,
+.it-record-card::before,
+.error-card::before,
+.task-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 12px 0 0 12px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.78), rgba(20, 165, 140, 0.78));
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.update-card:hover::before,
+.review-row:hover::before,
+.learning-card:hover::before,
+.it-record-card:hover::before,
+.error-card:hover::before,
+.task-card:hover::before {
+  opacity: 1;
+}
+
+.error-card.severity-critical::before,
+.task-card.blocked::before,
+.review-row.absent::before {
+  background: linear-gradient(180deg, var(--rose), #f59e0b);
+  opacity: 0.88;
+}
+
+.update-note strong,
+.review-update strong,
+.error-note strong,
+.it-field-grid span,
+.learning-summary-grid span,
+.it-summary-grid span,
+.monthly-stats span {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.update-note p,
+.review-update p,
+.error-note span,
+.it-field-grid strong,
+.learning-card p {
+  color: #1f2937;
+}
+
+.learning-bars,
+.monthly-stats,
+.it-summary-grid,
+.learning-summary-grid {
+  contain: layout paint;
+}
+
+.learning-bar-row i,
+.mini-progress span,
+.progress-track.large div {
+  box-shadow: 0 0 18px rgba(37, 99, 235, 0.18);
+}
+
+.task-card-top strong,
+.update-card-top strong,
+.review-member strong,
+.learning-card strong,
+.it-record-top strong,
+.error-card-top strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.empty-state {
+  color: #64748b;
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.92));
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .app-header::before {
+    width: 100%;
+    height: 4px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
