@@ -1,9 +1,11 @@
 import calendar
+from datetime import timedelta
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -11,11 +13,29 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Message, Profile, Project, Standup, Task
-from .serializers import MessageSerializer, ProfileSerializer, ProjectSerializer, StandupSerializer, TaskSerializer
+from .models import DailyError, ITAISubscription, ITAccount, ITDomain, ITEmployee, ITProject, ITRisk, ITServer, Message, Profile, Project, Standup, Task
+from .serializers import (
+    DailyErrorSerializer,
+    ITAISubscriptionSerializer,
+    ITAccountSerializer,
+    ITDomainSerializer,
+    ITEmployeeSerializer,
+    ITProjectSerializer,
+    ITRiskSerializer,
+    ITServerSerializer,
+    MessageSerializer,
+    ProfileSerializer,
+    ProjectSerializer,
+    StandupSerializer,
+    TaskSerializer,
+)
 
 
 LEADER_ROLES = {'Admin', 'Manager'}
+
+
+def is_admin_user(user):
+    return user.is_authenticated and user_role(user) == 'Admin'
 
 
 def user_profile(user):
@@ -138,11 +158,18 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Use month=YYYY-MM'}, status=status.HTTP_400_BAD_REQUEST)
 
         tasks = self.get_queryset().filter(work_date__gte=start, work_date__lt=end)
+        member_profiles = Profile.objects.select_related('user').filter(role='Member')
+        member_names = {
+            profile.display_name or profile.user.username
+            for profile in member_profiles
+        }
         member_map = {}
         project_map = {}
 
         for task in tasks.select_related('project'):
             owner = task.owner or 'Unassigned'
+            if user_role(request.user) in LEADER_ROLES and owner not in member_names:
+                continue
             if owner not in member_map:
                 member_map[owner] = {
                     'owner': owner,
@@ -172,7 +199,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 project_map[project]['done'] += 1
 
         members = []
-        known_profiles = Profile.objects.select_related('user')
+        known_profiles = member_profiles
         if user_role(request.user) not in LEADER_ROLES:
             known_profiles = known_profiles.filter(user=request.user)
 
@@ -189,19 +216,47 @@ class TaskViewSet(viewsets.ModelViewSet):
                     'present_days': set(),
                 }
 
+        standups = Standup.objects.select_related('user', 'user__profile').filter(
+            work_date__gte=start,
+            work_date__lt=end,
+            user__profile__role='Member',
+        )
+        if user_role(request.user) not in LEADER_ROLES:
+            standups = standups.filter(user=request.user)
+
+        for standup in standups:
+            profile = user_profile(standup.user)
+            owner = profile.display_name if profile and profile.display_name else standup.user.username
+            if owner not in member_map:
+                member_map[owner] = {
+                    'owner': owner,
+                    'total': 0,
+                    'done': 0,
+                    'in_progress': 0,
+                    'blocked': 0,
+                    'points': 0,
+                    'present_days': set(),
+                }
+            member_map[owner]['present_days'].add(standup.work_date.isoformat())
+
         working_days = working_days_in_month(start)
         for row in member_map.values():
             row['present_days'] = len(row['present_days'])
             row['absent_days'] = max(working_days - row['present_days'], 0)
             members.append(row)
 
+        task_total = sum(row['total'] for row in members)
+        task_done = sum(row['done'] for row in members)
+        task_in_progress = sum(row['in_progress'] for row in members)
+        task_blocked = sum(row['blocked'] for row in members)
+
         return Response({
             'month': request.query_params.get('month'),
             'working_days': working_days,
-            'total': tasks.count(),
-            'done': tasks.filter(status='Done').count(),
-            'in_progress': tasks.filter(status='In Progress').count(),
-            'blocked': tasks.filter(status='Blocked').count(),
+            'total': task_total,
+            'done': task_done,
+            'in_progress': task_in_progress,
+            'blocked': task_blocked,
             'members': sorted(members, key=lambda item: (-item['points'], item['owner'])),
             'projects': sorted(project_map.values(), key=lambda item: (-item['points'], item['project'])),
         }, status=status.HTTP_200_OK)
@@ -274,6 +329,124 @@ class StandupViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @action(detail=False, methods=['get'], url_path='daily-review')
+    def daily_review(self, request):
+        if user_role(request.user) != 'Admin':
+            return Response({'detail': 'Only admins can review daily updates'}, status=status.HTTP_403_FORBIDDEN)
+
+        work_date = request.query_params.get('date') or timezone.localdate().isoformat()
+        standups = {
+            standup.user_id: standup
+            for standup in Standup.objects.select_related('user', 'user__profile').filter(work_date=work_date)
+        }
+        rows = []
+
+        for profile in Profile.objects.select_related('user').filter(role='Member').order_by('display_name', 'user__username'):
+            standup = standups.get(profile.user_id)
+            rows.append({
+                'user_id': profile.user_id,
+                'username': profile.user.username,
+                'user_name': profile.display_name or profile.user.username,
+                'role': profile.role,
+                'attendance': 'Present' if standup else 'Absent',
+                'standup': StandupSerializer(standup).data if standup else None,
+            })
+
+        return Response({'date': work_date, 'members': rows}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], url_path='review')
+    def review(self, request, pk=None):
+        if user_role(request.user) != 'Admin':
+            return Response({'detail': 'Only admins can review daily updates'}, status=status.HTTP_403_FORBIDDEN)
+
+        standup = self.get_object()
+        review_status = request.data.get('review_status', 'Reviewed')
+        review_note = request.data.get('review_note', '').strip()
+        send_feedback = request.data.get('send_feedback', False)
+
+        valid_statuses = {choice[0] for choice in Standup.REVIEW_STATUS_CHOICES}
+        if review_status not in valid_statuses:
+            return Response({'detail': 'Invalid review status'}, status=status.HTTP_400_BAD_REQUEST)
+
+        standup.review_status = review_status
+        standup.review_note = review_note
+        standup.reviewed_by = request.user
+        standup.reviewed_at = timezone.now()
+        standup.save(update_fields=['review_status', 'review_note', 'reviewed_by', 'reviewed_at'])
+
+        if send_feedback and review_status in {'Duplicate / Repeated', 'Needs Clarification'}:
+            content = review_note or {
+                'Duplicate / Repeated': 'Your daily update looks repeated. Please update it with today\'s actual work.',
+                'Needs Clarification': 'Please review your daily update and add clearer details.',
+            }.get(review_status, 'Please review your daily update.')
+            Message.objects.create(
+                sender=request.user,
+                recipient=standup.user,
+                audience='Member',
+                content=content,
+                work_date=standup.work_date,
+            )
+
+        return Response(StandupSerializer(standup).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='send-reminder')
+    def send_reminder(self, request):
+        if user_role(request.user) != 'Admin':
+            return Response({'detail': 'Only admins can send reminders'}, status=status.HTTP_403_FORBIDDEN)
+
+        user_id = request.data.get('user_id')
+        work_date = request.data.get('work_date') or timezone.localdate().isoformat()
+        note = request.data.get('review_note', '').strip() or 'Please submit your daily update for today.'
+
+        try:
+            recipient = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        Message.objects.create(
+            sender=request.user,
+            recipient=recipient,
+            audience='Member',
+            content=note,
+            work_date=work_date,
+        )
+        return Response({'detail': 'Reminder sent'}, status=status.HTTP_200_OK)
+
+
+class DailyErrorViewSet(viewsets.ModelViewSet):
+    queryset = DailyError.objects.select_related('reported_by').all()
+    serializer_class = DailyErrorSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DailyError.objects.select_related('reported_by').all()
+        if user_role(self.request.user) not in LEADER_ROLES:
+            queryset = queryset.filter(reported_by=self.request.user)
+        return filter_by_date(queryset, self.request)
+
+    def perform_create(self, serializer):
+        serializer.save(reported_by=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        errors = self.get_queryset()
+        return Response({
+            'total': errors.count(),
+            'open': errors.exclude(status__in=['Resolved', 'Prevented']).count(),
+            'resolved': errors.filter(status__in=['Resolved', 'Prevented']).count(),
+            'critical': errors.filter(severity='Critical').count(),
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='mark-seen')
+    def mark_seen(self, request, pk=None):
+        daily_error = self.get_object()
+        daily_error.occurrence_count = F('occurrence_count') + 1
+        daily_error.status = 'Open'
+        daily_error.save(update_fields=['occurrence_count', 'status', 'updated_at'])
+        daily_error.refresh_from_db()
+        return Response(self.get_serializer(daily_error).data, status=status.HTTP_200_OK)
+
 
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
@@ -286,10 +459,142 @@ class MessageViewSet(viewsets.ModelViewSet):
         work_date = self.request.query_params.get('date')
         if work_date:
             queryset = queryset.filter(work_date=work_date)
+        queryset = queryset.filter(Q(recipient__isnull=True) | Q(recipient=self.request.user) | Q(sender=self.request.user))
         return queryset.order_by('created_at')
 
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
+
+
+class AdminOnlyITViewSet(viewsets.ModelViewSet):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if not is_admin_user(request.user):
+            self.permission_denied(request, message='Only admins can access IT Register')
+
+
+class ITProjectViewSet(AdminOnlyITViewSet):
+    queryset = ITProject.objects.all()
+    serializer_class = ITProjectSerializer
+
+
+class ITServerViewSet(AdminOnlyITViewSet):
+    queryset = ITServer.objects.all()
+    serializer_class = ITServerSerializer
+
+
+class ITDomainViewSet(AdminOnlyITViewSet):
+    queryset = ITDomain.objects.all()
+    serializer_class = ITDomainSerializer
+
+
+class ITAccountViewSet(AdminOnlyITViewSet):
+    queryset = ITAccount.objects.all()
+    serializer_class = ITAccountSerializer
+
+
+class ITEmployeeViewSet(AdminOnlyITViewSet):
+    queryset = ITEmployee.objects.all()
+    serializer_class = ITEmployeeSerializer
+
+
+class ITAISubscriptionViewSet(AdminOnlyITViewSet):
+    queryset = ITAISubscription.objects.all()
+    serializer_class = ITAISubscriptionSerializer
+
+
+class ITRiskViewSet(AdminOnlyITViewSet):
+    queryset = ITRisk.objects.all()
+    serializer_class = ITRiskSerializer
+
+
+def date_soon(value, days=30):
+    if not value:
+        return False
+    today = timezone.localdate()
+    return today <= value <= today + timedelta(days=days)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def it_register_summary(request):
+    if not is_admin_user(request.user):
+        return Response({'detail': 'Only admins can access IT Register'}, status=status.HTTP_403_FORBIDDEN)
+
+    projects = ITProject.objects.all()
+    servers = ITServer.objects.all()
+    domains = ITDomain.objects.all()
+    accounts = ITAccount.objects.all()
+    employees = ITEmployee.objects.all()
+    ai_subscriptions = ITAISubscription.objects.all()
+    risks = ITRisk.objects.all()
+
+    missing = []
+    for project in projects:
+        for field, label in [('owner', 'owner'), ('server', 'server'), ('credential_location', 'credential location')]:
+            if not getattr(project, field):
+                missing.append(f'Project {project.name} missing {label}')
+    for server in servers:
+        for field, label in [('ip_address', 'IP'), ('backup_status', 'backup status'), ('credential_location', 'credential location')]:
+            if not getattr(server, field):
+                missing.append(f'Server {server.name} missing {label}')
+    for domain in domains:
+        for field, label in [('registrar', 'registrar'), ('expiry_date', 'expiry date'), ('renewal_owner', 'renewal owner')]:
+            if not getattr(domain, field):
+                missing.append(f'Domain {domain.domain_name} missing {label}')
+    for account in accounts:
+        for field, label in [('owner', 'owner'), ('credential_location', 'credential location')]:
+            if not getattr(account, field):
+                missing.append(f'Account {account.account} missing {label}')
+    for employee in employees:
+        for field, label in [('position', 'position'), ('department', 'department')]:
+            if not getattr(employee, field):
+                missing.append(f'Employee {employee.name} missing {label}')
+    for subscription in ai_subscriptions:
+        for field, label in [('owner', 'owner'), ('account_email', 'account email'), ('credential_location', 'credential location')]:
+            if not getattr(subscription, field):
+                missing.append(f'AI subscription {subscription.tool_name} missing {label}')
+
+    expiring_domains = [
+        {'name': domain.domain_name, 'date': domain.expiry_date}
+        for domain in domains
+        if date_soon(domain.expiry_date)
+    ]
+    expiring_ssl = [
+        {'name': domain.domain_name, 'date': domain.ssl_expiry_date}
+        for domain in domains
+        if date_soon(domain.ssl_expiry_date)
+    ]
+    expiring_servers = [
+        {'name': server.name, 'date': server.renewal_date}
+        for server in servers
+        if date_soon(server.renewal_date)
+    ]
+    expiring_ai = [
+        {'name': subscription.tool_name, 'date': subscription.renewal_date}
+        for subscription in ai_subscriptions
+        if date_soon(subscription.renewal_date)
+    ]
+
+    return Response({
+        'projects': projects.count(),
+        'servers': servers.count(),
+        'domains': domains.count(),
+        'accounts': accounts.count(),
+        'employees': employees.count(),
+        'ai_subscriptions': ai_subscriptions.count(),
+        'open_risks': risks.exclude(status='Resolved').count(),
+        'critical_risks': risks.filter(severity='Critical').exclude(status='Resolved').count(),
+        'missing_count': len(missing),
+        'missing': missing[:12],
+        'expiring_domains': expiring_domains,
+        'expiring_ssl': expiring_ssl,
+        'expiring_servers': expiring_servers,
+        'expiring_ai': expiring_ai,
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -367,3 +672,28 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return Response({'authenticated': False})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password_view(request):
+    current_password = request.data.get('current_password', '')
+    new_password = request.data.get('new_password', '')
+    confirm_password = request.data.get('confirm_password', '')
+
+    if not current_password or not new_password or not confirm_password:
+        return Response({'detail': 'All password fields are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if new_password != confirm_password:
+        return Response({'detail': 'New passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_password) < 8:
+        return Response({'detail': 'New password must be at least 8 characters'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not request.user.check_password(current_password):
+        return Response({'detail': 'Current password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
+
+    request.user.set_password(new_password)
+    request.user.save(update_fields=['password'])
+    login(request, request.user)
+    return Response({'detail': 'Password changed'}, status=status.HTTP_200_OK)
