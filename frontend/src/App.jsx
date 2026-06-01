@@ -60,6 +60,17 @@ const initialPasswordForm = {
   confirm_password: '',
 }
 
+const initialLearningForm = {
+  work_date: todayValue(),
+  topic: '',
+  category: '',
+  summary: '',
+  source: '',
+  time_spent_minutes: '',
+  confidence: 'Practicing',
+  next_step: '',
+}
+
 const itTabs = [
   { key: 'projects', label: 'Projects' },
   { key: 'servers', label: 'Servers' },
@@ -402,6 +413,10 @@ function App() {
   const [standupForm, setStandupForm] = useState(initialStandupForm)
   const [errorForm, setErrorForm] = useState(initialErrorForm)
   const [passwordForm, setPasswordForm] = useState(initialPasswordForm)
+  const [learningForm, setLearningForm] = useState(initialLearningForm)
+  const [learningEntries, setLearningEntries] = useState([])
+  const [learningReport, setLearningReport] = useState(null)
+  const [learningUserId, setLearningUserId] = useState('all')
   const [itSummary, setItSummary] = useState(null)
   const [itData, setItData] = useState({ projects: [], servers: [], domains: [], accounts: [], employees: [], aiSubscriptions: [], risks: [] })
   const [itForms, setItForms] = useState(initialItForms)
@@ -414,6 +429,7 @@ function App() {
   const [isReviewDeskOpen, setIsReviewDeskOpen] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isItRegisterOpen, setIsItRegisterOpen] = useState(false)
+  const [isLearningDeskOpen, setIsLearningDeskOpen] = useState(false)
   const [filterRole, setFilterRole] = useState('All')
   const [taskScope, setTaskScope] = useState('team')
   const [selectedDate, setSelectedDate] = useState(todayValue)
@@ -456,6 +472,22 @@ function App() {
     if (user?.role !== 'Admin') return
     const { response, data } = await fetchJson(`${API_BASE}/standups/daily-review/?date=${date}`)
     if (response.ok) setDailyReview(data)
+  }
+
+  const getLearningQuery = (date = selectedDate, month = selectedMonth, userId = learningUserId) => {
+    const params = new URLSearchParams({ date, month })
+    if (user?.role === 'Admin') params.set('user_id', userId || 'all')
+    return params.toString()
+  }
+
+  const loadLearningDesk = async (date = selectedDate, month = selectedMonth, userId = learningUserId) => {
+    const query = getLearningQuery(date, month, userId)
+    const [entriesResult, reportResult] = await Promise.all([
+      fetchJson(`${API_BASE}/learnings/?${query}`),
+      fetchJson(`${API_BASE}/learnings/report/?${query}`),
+    ])
+    if (entriesResult.response.ok) setLearningEntries(entriesResult.data)
+    if (reportResult.response.ok) setLearningReport(reportResult.data)
   }
 
   const loadItRegister = async () => {
@@ -724,6 +756,25 @@ function App() {
   const getItFields = (record) => (itDisplayFields[activeItTab] || [])
     .map(([label, key]) => [label, formatItValue(record[key])])
     .filter(([, value]) => value)
+  const renderLearningBars = (items = [], mode = 'entries') => {
+    const maxValue = Math.max(...items.map((item) => item[mode] || 0), 1)
+    return (
+      <div className="learning-bars">
+        {items.map((item) => {
+          const value = item[mode] || 0
+          return (
+            <div className="learning-bar-row" key={item.label}>
+              <span>{item.label}</span>
+              <div>
+                <i style={{ width: `${Math.max((value / maxValue) * 100, value ? 8 : 0)}%` }} />
+              </div>
+              <strong>{value}</strong>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   const handleTaskChange = (event) => {
     const { name, value } = event.target
@@ -733,6 +784,7 @@ function App() {
   const handleDateChange = (event) => {
     const date = event.target.value
     setSelectedDate(date)
+    setLearningForm((current) => ({ ...current, work_date: date }))
   }
 
   const handleMonthChange = async (event) => {
@@ -768,6 +820,17 @@ function App() {
     setPasswordForm((current) => ({ ...current, [name]: value }))
   }
 
+  const handleLearningChange = (event) => {
+    const { name, value } = event.target
+    setLearningForm((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleLearningUserChange = async (event) => {
+    const userId = event.target.value
+    setLearningUserId(userId)
+    await loadLearningDesk(selectedDate, selectedMonth, userId)
+  }
+
   const handleReviewNoteChange = (memberKey, value) => {
     setReviewNotes((current) => ({ ...current, [memberKey]: value }))
   }
@@ -786,6 +849,14 @@ function App() {
   const openItRegister = async () => {
     setIsItRegisterOpen(true)
     await loadItRegister()
+  }
+
+  const openLearningDesk = async () => {
+    const defaultUserId = user?.role === 'Admin' ? 'all' : ''
+    setLearningUserId(defaultUserId)
+    setLearningForm((current) => ({ ...current, work_date: selectedDate }))
+    setIsLearningDeskOpen(true)
+    await loadLearningDesk(selectedDate, selectedMonth, defaultUserId)
   }
 
   const handleAuthSubmit = async (event) => {
@@ -825,13 +896,17 @@ function App() {
       setUser(null)
       setTaskForm(initialTaskForm)
       setDailyErrors([])
+      setLearningEntries([])
+      setLearningReport(null)
       setDailyReview({ date: '', members: [] })
       setErrorSummary({ total: 0, open: 0, resolved: 0, critical: 0 })
       setIsErrorDeskOpen(false)
       setIsReviewDeskOpen(false)
       setIsPasswordModalOpen(false)
       setIsItRegisterOpen(false)
+      setIsLearningDeskOpen(false)
       setPasswordForm(initialPasswordForm)
+      setLearningForm(initialLearningForm)
       setAuthMessage('Signed out')
     }
   }
@@ -852,6 +927,33 @@ function App() {
       setPasswordForm(initialPasswordForm)
       setIsPasswordModalOpen(false)
       setStatusMessage('Password changed')
+    } catch (error) {
+      setStatusMessage(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLearningSubmit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setStatusMessage('')
+
+    try {
+      const payload = {
+        ...learningForm,
+        time_spent_minutes: Number(learningForm.time_spent_minutes || 0),
+      }
+      const { response, data } = await fetchJson(`${API_BASE}/learnings/`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) throw new Error(data?.detail || 'Could not save learning')
+
+      setLearningForm({ ...initialLearningForm, work_date: selectedDate })
+      setStatusMessage('Learning saved')
+      await loadLearningDesk(selectedDate, selectedMonth, learningUserId)
     } catch (error) {
       setStatusMessage(error.message)
     } finally {
@@ -1280,6 +1382,9 @@ function App() {
             ) : null}
             <button className="error-desk-button" type="button" onClick={() => setIsErrorDeskOpen(true)}>
               Error desk {openDailyErrors.length ? <span>{openDailyErrors.length}</span> : null}
+            </button>
+            <button className="learning-desk-button" type="button" onClick={openLearningDesk}>
+              Learning
             </button>
             <button type="button" onClick={() => setIsPasswordModalOpen(true)}>Password</button>
             <button type="button" onClick={handleLogout}>Logout</button>
@@ -1719,6 +1824,130 @@ function App() {
                   </article>
                 )
               }) : <p className="empty-state">No members available for review.</p>}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {isLearningDeskOpen ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="learning-modal panel" role="dialog" aria-modal="true" aria-label="Learning desk">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">Learning desk</p>
+                <h2>Daily learning</h2>
+              </div>
+              <div className="modal-actions">
+                {user.role === 'Admin' ? (
+                  <label className="learning-user-filter">
+                    Member
+                    <select value={learningUserId} onChange={handleLearningUserChange}>
+                      <option value="all">All members</option>
+                      {members.filter((member) => member.role === 'Member').map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.display_name || member.username}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <button type="button" className="close-button" onClick={() => setIsLearningDeskOpen(false)} aria-label="Close learning desk">
+                  X
+                </button>
+              </div>
+            </div>
+
+            <div className="learning-summary-grid">
+              <article><span>Today</span><strong>{learningReport?.today?.entries || 0}</strong><small>{learningReport?.today?.minutes || 0} min</small></article>
+              <article><span>This week</span><strong>{learningReport?.week?.entries || 0}</strong><small>{learningReport?.week?.minutes || 0} min</small></article>
+              <article><span>This month</span><strong>{learningReport?.month_summary?.entries || 0}</strong><small>{learningReport?.month_summary?.minutes || 0} min</small></article>
+              <article><span>Categories</span><strong>{learningReport?.categories?.length || 0}</strong><small>tracked</small></article>
+            </div>
+
+            <div className="learning-layout">
+              <form className="learning-form" onSubmit={handleLearningSubmit}>
+                <div className="panel-heading span-2">
+                  <div>
+                    <p className="eyebrow">Add</p>
+                    <h2>What did you learn?</h2>
+                  </div>
+                  {statusMessage ? <span className="inline-status">{statusMessage}</span> : null}
+                </div>
+                <label>
+                  Date
+                  <input name="work_date" type="date" value={learningForm.work_date} onChange={handleLearningChange} required />
+                </label>
+                <label>
+                  Topic
+                  <input name="topic" value={learningForm.topic} onChange={handleLearningChange} placeholder="React hooks, Docker logs, SQL indexes" required />
+                </label>
+                <label>
+                  Category
+                  <input name="category" value={learningForm.category} onChange={handleLearningChange} placeholder="Frontend, Backend, DevOps, AI" />
+                </label>
+                <label>
+                  Time
+                  <input name="time_spent_minutes" type="number" min="0" value={learningForm.time_spent_minutes} onChange={handleLearningChange} placeholder="Minutes" />
+                </label>
+                <label>
+                  Confidence
+                  <select name="confidence" value={learningForm.confidence} onChange={handleLearningChange}>
+                    <option>Started</option>
+                    <option>Practicing</option>
+                    <option>Confident</option>
+                  </select>
+                </label>
+                <label>
+                  Source
+                  <input name="source" value={learningForm.source} onChange={handleLearningChange} placeholder="Task, course, docs, issue" />
+                </label>
+                <label className="span-2">
+                  Learning
+                  <textarea name="summary" value={learningForm.summary} onChange={handleLearningChange} placeholder="Write the useful thing learned today" rows="3" required />
+                </label>
+                <label className="span-2">
+                  Next step
+                  <textarea name="next_step" value={learningForm.next_step} onChange={handleLearningChange} placeholder="What should you practice or apply next?" rows="2" />
+                </label>
+                <button className="primary-button span-2" type="submit" disabled={loading}>Save learning</button>
+              </form>
+
+              <section className="learning-insights">
+                <div className="learning-chart-grid">
+                  <article>
+                    <div className="mini-heading">
+                      <strong>Last 7 days</strong>
+                      <span>Entries</span>
+                    </div>
+                    {renderLearningBars(learningReport?.week?.series || [])}
+                  </article>
+                  <article>
+                    <div className="mini-heading">
+                      <strong>Month weeks</strong>
+                      <span>Minutes</span>
+                    </div>
+                    {renderLearningBars(learningReport?.month_summary?.weeks || [], 'minutes')}
+                  </article>
+                </div>
+
+                <div className="learning-record-list">
+                  {learningEntries.length ? learningEntries.map((entry) => (
+                    <article className="learning-card" key={entry.id}>
+                      <div>
+                        <strong>{entry.topic}</strong>
+                        <span>{entry.user_name} · {entry.work_date} · {entry.confidence}</span>
+                      </div>
+                      <p>{entry.summary}</p>
+                      <div className="learning-tags">
+                        {entry.category ? <span>{entry.category}</span> : null}
+                        {entry.source ? <span>{entry.source}</span> : null}
+                        <span>{entry.time_spent_minutes || 0} min</span>
+                      </div>
+                      {entry.next_step ? <small>Next: {entry.next_step}</small> : null}
+                    </article>
+                  )) : <p className="empty-state">No learning added for this view.</p>}
+                </div>
+              </section>
             </div>
           </section>
         </div>

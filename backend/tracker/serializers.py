@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DailyError, ITAISubscription, ITAccount, ITDomain, ITEmployee, ITProject, ITRisk, ITServer, Message, Profile, Project, Standup, Task
+from .models import DailyError, ITAISubscription, ITAccount, ITDomain, ITEmployee, ITProject, ITRisk, ITServer, LearningEntry, Message, Profile, Project, Standup, Task
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -155,6 +155,35 @@ class DailyErrorSerializer(serializers.ModelSerializer):
             return 'Unknown'
         profile = getattr(obj.reported_by, 'profile', None)
         return profile.display_name if profile and profile.display_name else obj.reported_by.username
+
+
+class LearningEntrySerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = LearningEntry
+        fields = [
+            'id',
+            'user',
+            'username',
+            'user_name',
+            'work_date',
+            'topic',
+            'category',
+            'summary',
+            'source',
+            'time_spent_minutes',
+            'confidence',
+            'next_step',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['user']
+
+    def get_user_name(self, obj):
+        profile = getattr(obj.user, 'profile', None)
+        return profile.display_name if profile and profile.display_name else obj.user.username
 
 
 class ITProjectSerializer(serializers.ModelSerializer):

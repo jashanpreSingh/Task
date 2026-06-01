@@ -13,7 +13,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import DailyError, ITAISubscription, ITAccount, ITDomain, ITEmployee, ITProject, ITRisk, ITServer, Message, Profile, Project, Standup, Task
+from .models import DailyError, ITAISubscription, ITAccount, ITDomain, ITEmployee, ITProject, ITRisk, ITServer, LearningEntry, Message, Profile, Project, Standup, Task
 from .serializers import (
     DailyErrorSerializer,
     ITAISubscriptionSerializer,
@@ -23,6 +23,7 @@ from .serializers import (
     ITProjectSerializer,
     ITRiskSerializer,
     ITServerSerializer,
+    LearningEntrySerializer,
     MessageSerializer,
     ProfileSerializer,
     ProjectSerializer,
@@ -99,6 +100,11 @@ def month_bounds(month_value):
 def working_days_in_month(start):
     _, days = calendar.monthrange(start.year, start.month)
     return sum(1 for day in range(1, days + 1) if start.replace(day=day).weekday() != 6)
+
+
+def display_name_for_user(user):
+    profile = user_profile(user)
+    return profile.display_name if profile and profile.display_name else user.username
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -446,6 +452,139 @@ class DailyErrorViewSet(viewsets.ModelViewSet):
         daily_error.save(update_fields=['occurrence_count', 'status', 'updated_at'])
         daily_error.refresh_from_db()
         return Response(self.get_serializer(daily_error).data, status=status.HTTP_200_OK)
+
+
+class LearningEntryViewSet(viewsets.ModelViewSet):
+    queryset = LearningEntry.objects.select_related('user', 'user__profile').all()
+    serializer_class = LearningEntrySerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = LearningEntry.objects.select_related('user', 'user__profile').all()
+        if user_role(self.request.user) not in LEADER_ROLES:
+            queryset = queryset.filter(user=self.request.user)
+        else:
+            user_id = self.request.query_params.get('user_id')
+            if user_id and user_id != 'all':
+                queryset = queryset.filter(user_id=user_id)
+
+        work_date = self.request.query_params.get('date')
+        month = self.request.query_params.get('month')
+        if work_date:
+            queryset = queryset.filter(work_date=work_date)
+        elif month:
+            start, end = month_bounds(month)
+            if start:
+                queryset = queryset.filter(work_date__gte=start, work_date__lt=end)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if user_role(self.request.user) in LEADER_ROLES or serializer.instance.user_id == self.request.user.id:
+            serializer.save(user=serializer.instance.user)
+            return
+        self.permission_denied(self.request, message='You can update only your own learning')
+
+    def destroy(self, request, *args, **kwargs):
+        entry = self.get_object()
+        if user_role(request.user) not in LEADER_ROLES and entry.user_id != request.user.id:
+            return Response({'detail': 'You can delete only your own learning'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'])
+    def report(self, request):
+        selected_date = parse_date(request.query_params.get('date') or timezone.localdate().isoformat()) or timezone.localdate()
+        month = request.query_params.get('month') or selected_date.strftime('%Y-%m')
+        month_start, month_end = month_bounds(month)
+        if not month_start:
+            return Response({'detail': 'Use month=YYYY-MM'}, status=status.HTTP_400_BAD_REQUEST)
+
+        base_queryset = LearningEntry.objects.select_related('user', 'user__profile')
+        selected_user_id = request.query_params.get('user_id', '')
+        if user_role(request.user) not in LEADER_ROLES:
+            base_queryset = base_queryset.filter(user=request.user)
+            selected_user_id = str(request.user.id)
+        elif selected_user_id and selected_user_id != 'all':
+            base_queryset = base_queryset.filter(user_id=selected_user_id)
+
+        week_start = selected_date - timedelta(days=6)
+        week_entries = base_queryset.filter(work_date__gte=week_start, work_date__lte=selected_date)
+        month_entries = base_queryset.filter(work_date__gte=month_start, work_date__lt=month_end)
+        today_entries = base_queryset.filter(work_date=selected_date)
+
+        def empty_bucket(label):
+            return {'label': label, 'entries': 0, 'minutes': 0}
+
+        daily_series = [
+            empty_bucket((week_start + timedelta(days=index)).strftime('%d %b'))
+            for index in range(7)
+        ]
+        daily_index = {
+            (week_start + timedelta(days=index)).isoformat(): index
+            for index in range(7)
+        }
+        for entry in week_entries:
+            bucket_index = daily_index.get(entry.work_date.isoformat())
+            if bucket_index is None:
+                continue
+            daily_series[bucket_index]['entries'] += 1
+            daily_series[bucket_index]['minutes'] += entry.time_spent_minutes
+
+        _, days_in_month = calendar.monthrange(month_start.year, month_start.month)
+        week_series = [empty_bucket(f'Week {index}') for index in range(1, 6)]
+        month_series = [
+            empty_bucket(month_start.replace(day=day).strftime('%d'))
+            for day in range(1, days_in_month + 1)
+        ]
+        member_map = {}
+        category_map = {}
+
+        for entry in month_entries:
+            week_number = min(((entry.work_date.day - 1) // 7), 4)
+            week_series[week_number]['entries'] += 1
+            week_series[week_number]['minutes'] += entry.time_spent_minutes
+
+            day_bucket = entry.work_date.day - 1
+            month_series[day_bucket]['entries'] += 1
+            month_series[day_bucket]['minutes'] += entry.time_spent_minutes
+
+            member_name = display_name_for_user(entry.user)
+            if member_name not in member_map:
+                member_map[member_name] = {'user_id': entry.user_id, 'name': member_name, 'entries': 0, 'minutes': 0}
+            member_map[member_name]['entries'] += 1
+            member_map[member_name]['minutes'] += entry.time_spent_minutes
+
+            category = entry.category or 'General'
+            if category not in category_map:
+                category_map[category] = {'category': category, 'entries': 0, 'minutes': 0}
+            category_map[category]['entries'] += 1
+            category_map[category]['minutes'] += entry.time_spent_minutes
+
+        return Response({
+            'date': selected_date.isoformat(),
+            'month': month,
+            'selected_user_id': selected_user_id or 'all',
+            'today': {
+                'entries': today_entries.count(),
+                'minutes': sum(entry.time_spent_minutes for entry in today_entries),
+            },
+            'week': {
+                'entries': week_entries.count(),
+                'minutes': sum(entry.time_spent_minutes for entry in week_entries),
+                'series': daily_series,
+            },
+            'month_summary': {
+                'entries': month_entries.count(),
+                'minutes': sum(entry.time_spent_minutes for entry in month_entries),
+                'series': month_series,
+                'weeks': week_series,
+            },
+            'members': sorted(member_map.values(), key=lambda item: (-item['entries'], item['name'])),
+            'categories': sorted(category_map.values(), key=lambda item: (-item['entries'], item['category'])),
+        }, status=status.HTTP_200_OK)
 
 
 class MessageViewSet(viewsets.ModelViewSet):

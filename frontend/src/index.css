@@ -427,6 +427,11 @@ textarea {
   color: #805b12;
 }
 
+.user-menu .learning-desk-button {
+  background: #eef7ff;
+  color: #1f58b8;
+}
+
 .error-desk-button span {
   min-width: 20px;
   height: 20px;
@@ -1126,6 +1131,180 @@ textarea {
   gap: 12px;
 }
 
+.learning-modal {
+  width: min(1240px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+}
+
+.learning-user-filter {
+  min-width: 220px;
+  text-align: left;
+}
+
+.learning-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.learning-summary-grid article {
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.learning-summary-grid span,
+.learning-summary-grid small {
+  display: block;
+  color: #607082;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.learning-summary-grid strong {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 1.65rem;
+}
+
+.learning-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.learning-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.learning-form .span-2 {
+  grid-column: 1 / -1;
+}
+
+.learning-insights {
+  display: grid;
+  gap: 12px;
+}
+
+.learning-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.learning-chart-grid article {
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.mini-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mini-heading span {
+  color: #607082;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.learning-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.learning-bar-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.learning-bar-row span,
+.learning-bar-row strong {
+  color: #526276;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.learning-bar-row div {
+  height: 10px;
+  border-radius: 999px;
+  background: #edf2f7;
+  overflow: hidden;
+}
+
+.learning-bar-row i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #2b70f0;
+}
+
+.learning-record-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(430px, calc(100vh - 420px));
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.learning-card {
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.learning-card strong,
+.learning-card span {
+  display: block;
+}
+
+.learning-card span,
+.learning-card small {
+  color: #607082;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.learning-card p {
+  margin: 0;
+  color: #17212b;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.learning-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.learning-tags span {
+  border-radius: 999px;
+  background: #edf2f7;
+  padding: 6px 9px;
+}
+
 .it-register-modal {
   width: min(1320px, 100%);
   max-height: calc(100vh - 36px);
@@ -1801,6 +1980,8 @@ textarea {
   .work-grid,
   .collaboration-grid,
   .updates-dashboard-grid,
+  .learning-layout,
+  .learning-chart-grid,
   .it-register-layout,
   .review-row,
   .error-desk-grid,
@@ -1814,6 +1995,10 @@ textarea {
   }
 
   .it-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .learning-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1862,9 +2047,15 @@ textarea {
     width: 100%;
   }
 
+  .learning-user-filter {
+    width: 100%;
+  }
+
   .metrics-row,
   .monthly-stats,
   .quick-add,
+  .learning-form,
+  .learning-summary-grid,
   .it-field-grid,
   .it-form,
   .it-summary-grid,

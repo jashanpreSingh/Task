@@ -110,6 +110,32 @@ class Standup(models.Model):
         return f"{self.user.username} standup {self.created_at:%Y-%m-%d}"
 
 
+class LearningEntry(models.Model):
+    CONFIDENCE_CHOICES = [
+        ('Started', 'Started'),
+        ('Practicing', 'Practicing'),
+        ('Confident', 'Confident'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='learning_entries')
+    work_date = models.DateField(default=timezone.localdate)
+    topic = models.CharField(max_length=180)
+    category = models.CharField(max_length=100, blank=True, default='')
+    summary = models.TextField()
+    source = models.CharField(max_length=180, blank=True, default='')
+    time_spent_minutes = models.PositiveIntegerField(default=0)
+    confidence = models.CharField(max_length=24, choices=CONFIDENCE_CHOICES, default='Practicing')
+    next_step = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-work_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} learned {self.topic}"
+
+
 class DailyError(models.Model):
     SEVERITY_CHOICES = [
         ('Low', 'Low'),
@@ -120,6 +146,7 @@ class DailyError(models.Model):
 
     STATUS_CHOICES = [
         ('Open', 'Open'),
+        ('Fixing', 'Fixing'),
         ('Investigating', 'Investigating'),
         ('Resolved', 'Resolved'),
         ('Prevented', 'Prevented'),

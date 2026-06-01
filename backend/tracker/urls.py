@@ -10,6 +10,7 @@ from .views import (
     ITProjectViewSet,
     ITRiskViewSet,
     ITServerViewSet,
+    LearningEntryViewSet,
     MessageViewSet,
     ProfileViewSet,
     ProjectViewSet,
@@ -29,6 +30,7 @@ router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'standups', StandupViewSet, basename='standup')
 router.register(r'errors', DailyErrorViewSet, basename='error')
+router.register(r'learnings', LearningEntryViewSet, basename='learning')
 router.register(r'members', ProfileViewSet, basename='member')
 router.register(r'it/projects', ITProjectViewSet, basename='it-project')
 router.register(r'it/servers', ITServerViewSet, basename='it-server')
