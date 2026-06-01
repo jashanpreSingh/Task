@@ -689,6 +689,42 @@ function App() {
     }
   }, [dailyReview.members])
 
+  const workVisual = useMemo(() => {
+    if (user?.role === 'Admin') {
+      const bars = [
+        { label: 'Submitted', value: dailyUpdateStats.submitted.length, tone: 'success' },
+        { label: 'Absent', value: dailyUpdateStats.absent.length, tone: 'danger' },
+        { label: 'Review', value: dailyUpdateStats.pending.length, tone: 'warning' },
+        { label: 'Blockers', value: dailyUpdateStats.blockers.length, tone: 'danger' },
+      ]
+      const max = Math.max(...bars.map((bar) => bar.value), dailyUpdateStats.totalMembers, 1)
+      return {
+        title: 'Live work signal',
+        subtitle: `${dailyUpdateStats.percent}% team updates submitted`,
+        primary: dailyUpdateStats.percent,
+        bars,
+        max,
+        focus: dailyUpdateStats.absent.length ? 'Follow up on missing updates' : dailyUpdateStats.pending.length ? 'Review pending updates' : 'Team is clear for today',
+      }
+    }
+
+    const bars = statuses.map((status) => ({
+      label: status,
+      value: tasksByStatus[status]?.length || 0,
+      tone: status === 'Done' ? 'success' : status === 'Blocked' ? 'danger' : status === 'In Progress' ? 'info' : 'neutral',
+    }))
+    const max = Math.max(...bars.map((bar) => bar.value), 1)
+    const donePercent = visibleTasks.length ? Math.round(((tasksByStatus.Done?.length || 0) / visibleTasks.length) * 100) : 0
+    return {
+      title: taskScope === 'mine' ? 'My work flow' : 'Team work flow',
+      subtitle: `${donePercent}% of visible work done`,
+      primary: donePercent,
+      bars,
+      max,
+      focus: visibleBlockedTasks.length ? 'Clear blockers first' : visibleTasks.length ? 'Keep current work moving' : 'No tasks assigned yet',
+    }
+  }, [dailyUpdateStats, taskScope, tasksByStatus, user?.role, visibleBlockedTasks.length, visibleTasks.length])
+
   const today = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${selectedDate}T00:00:00`))
   const flowCopy = isLeader
     ? 'Assign work, spot blockers, and move the team forward.'
@@ -1432,6 +1468,38 @@ function App() {
             </article>
           </>
         )}
+      </section>
+
+      <section className="visual-work-panel panel" aria-label="Live work visualization">
+        <div className="visual-copy">
+          <p className="eyebrow">Visuals</p>
+          <h2>{workVisual.title}</h2>
+          <span>{workVisual.subtitle}</span>
+        </div>
+        <div className="visual-ring" style={{ '--visual-progress': `${workVisual.primary}%` }}>
+          <strong>{workVisual.primary}%</strong>
+          <span>signal</span>
+        </div>
+        <div className="visual-bars">
+          {workVisual.bars.map((bar) => (
+            <div className={`visual-bar-row tone-${bar.tone}`} key={bar.label}>
+              <span>{bar.label}</span>
+              <div>
+                <i style={{ width: `${Math.max((bar.value / workVisual.max) * 100, bar.value ? 8 : 0)}%` }} />
+              </div>
+              <strong>{bar.value}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="visual-reel" aria-hidden="true">
+          {workVisual.bars.map((bar, index) => (
+            <span className={`tone-${bar.tone}`} style={{ '--delay': `${index * 0.18}s` }} key={bar.label}></span>
+          ))}
+        </div>
+        <div className="visual-focus">
+          <span>Next best action</span>
+          <strong>{workVisual.focus}</strong>
+        </div>
       </section>
 
       <section className="flow-bar" aria-label="Work mode">
