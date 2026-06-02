@@ -19,7 +19,8 @@ const initialTaskForm = {
   task: '',
   owner: '',
   assigned_to: '',
-  status: 'In Progress',
+  project: '',
+  status: 'Backlog',
   blocker: '',
   start_time: '',
   end_time: '',
@@ -58,6 +59,14 @@ const initialPasswordForm = {
   current_password: '',
   new_password: '',
   confirm_password: '',
+}
+
+const initialAdminMemberForm = {
+  member_id: '',
+  display_name: '',
+  username: '',
+  role: 'Member',
+  new_password: '',
 }
 
 const initialLearningForm = {
@@ -399,8 +408,11 @@ function App() {
   const [user, setUser] = useState(null)
   const [authMode, setAuthMode] = useState('login')
   const [authForm, setAuthForm] = useState(initialAuthForm)
+  const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
   const [tasks, setTasks] = useState([])
+  const [upcomingWork, setUpcomingWork] = useState([])
+  const [projects, setProjects] = useState([])
   const [summary, setSummary] = useState({ completed: 0, pending_blockers: 0, in_progress: 0 })
   const [errorSummary, setErrorSummary] = useState({ total: 0, open: 0, resolved: 0, critical: 0 })
   const [monthlyReport, setMonthlyReport] = useState(null)
@@ -413,6 +425,7 @@ function App() {
   const [standupForm, setStandupForm] = useState(initialStandupForm)
   const [errorForm, setErrorForm] = useState(initialErrorForm)
   const [passwordForm, setPasswordForm] = useState(initialPasswordForm)
+  const [adminMemberForm, setAdminMemberForm] = useState(initialAdminMemberForm)
   const [learningForm, setLearningForm] = useState(initialLearningForm)
   const [learningEntries, setLearningEntries] = useState([])
   const [learningReport, setLearningReport] = useState(null)
@@ -425,12 +438,18 @@ function App() {
   const [itSearch, setItSearch] = useState('')
   const [reviewNotes, setReviewNotes] = useState({})
   const [editingErrorId, setEditingErrorId] = useState(null)
+  const [editingUpcomingId, setEditingUpcomingId] = useState(null)
+  const [upcomingEditForm, setUpcomingEditForm] = useState(initialTaskForm)
   const [isErrorDeskOpen, setIsErrorDeskOpen] = useState(false)
   const [isReviewDeskOpen, setIsReviewDeskOpen] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isItRegisterOpen, setIsItRegisterOpen] = useState(false)
   const [isLearningDeskOpen, setIsLearningDeskOpen] = useState(false)
   const [filterRole, setFilterRole] = useState('All')
+  const [upcomingProjectFilter, setUpcomingProjectFilter] = useState('all')
+  const [upcomingStatusFilter, setUpcomingStatusFilter] = useState('open')
+  const [upcomingAssignmentFilter, setUpcomingAssignmentFilter] = useState('all')
+  const [issueSearch, setIssueSearch] = useState('')
   const [taskScope, setTaskScope] = useState('team')
   const [selectedDate, setSelectedDate] = useState(todayValue)
   const [selectedMonth, setSelectedMonth] = useState(monthValue)
@@ -438,9 +457,21 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('')
   const chatEndRef = useRef(null)
 
+  useEffect(() => {
+    if (window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname)
+      window.scrollTo({ top: 0, left: 0 })
+    }
+  }, [])
+
   const loadTasks = async (date = selectedDate) => {
     const { response, data } = await fetchJson(`${API_BASE}/tasks/?date=${date}`)
     if (response.ok) setTasks(data)
+  }
+
+  const loadUpcomingWork = async (date = selectedDate) => {
+    const { response, data } = await fetchJson(`${API_BASE}/tasks/upcoming/?from=${date}&days=30`)
+    if (response.ok) setUpcomingWork(data)
   }
 
   const loadSummary = async (date = selectedDate) => {
@@ -466,6 +497,11 @@ function App() {
   const loadMembers = async () => {
     const { response, data } = await fetchJson(`${API_BASE}/members/`)
     if (response.ok) setMembers(data)
+  }
+
+  const loadProjects = async () => {
+    const { response, data } = await fetchJson(`${API_BASE}/projects/`)
+    if (response.ok) setProjects(data)
   }
 
   const loadDailyReview = async (date = selectedDate) => {
@@ -520,8 +556,8 @@ function App() {
   }
 
   const refreshData = async (includeMessages = Boolean(user), date = selectedDate) => {
-    const loaders = [loadTasks(date), loadSummary(date), loadDailyErrors(date), loadErrorSummary(date), loadMonthlyReport()]
-    if (includeMessages) loaders.push(loadMessages(date), loadMembers())
+    const loaders = [loadTasks(date), loadUpcomingWork(date), loadSummary(date), loadDailyErrors(date), loadErrorSummary(date), loadMonthlyReport()]
+    if (includeMessages) loaders.push(loadMessages(date), loadMembers(), loadProjects())
     if (user?.role === 'Admin') loaders.push(loadDailyReview(date))
     await Promise.all(loaders)
   }
@@ -534,20 +570,24 @@ function App() {
         setUser(data)
         setTaskForm((current) => ({ ...current, owner: data.display_name }))
         setTaskScope(leaderRoles.includes(data.role) ? 'team' : 'mine')
-        const [tasksResult, summaryResult, messagesResult, membersResult, reportResult, errorsResult, errorSummaryResult, reviewResult] = await Promise.all([
+        const [tasksResult, upcomingResult, summaryResult, messagesResult, membersResult, projectsResult, reportResult, errorsResult, errorSummaryResult, reviewResult] = await Promise.all([
           fetchJson(`${API_BASE}/tasks/?date=${selectedDate}`),
+          fetchJson(`${API_BASE}/tasks/upcoming/?from=${selectedDate}&days=30`),
           fetchJson(`${API_BASE}/tasks/summary/?date=${selectedDate}`),
           fetchJson(`${API_BASE}/messages/?date=${selectedDate}`),
           fetchJson(`${API_BASE}/members/`),
+          fetchJson(`${API_BASE}/projects/`),
           fetchJson(`${API_BASE}/tasks/monthly-report/?month=${selectedMonth}`),
           fetchJson(`${API_BASE}/errors/?date=${selectedDate}`),
           fetchJson(`${API_BASE}/errors/summary/?date=${selectedDate}`),
           data.role === 'Admin' ? fetchJson(`${API_BASE}/standups/daily-review/?date=${selectedDate}`) : Promise.resolve({ response: { ok: false }, data: null }),
         ])
         if (tasksResult.response.ok) setTasks(tasksResult.data)
+        if (upcomingResult.response.ok) setUpcomingWork(upcomingResult.data)
         if (summaryResult.response.ok) setSummary(summaryResult.data)
         if (messagesResult.response.ok) setMessages(messagesResult.data)
         if (membersResult.response.ok) setMembers(membersResult.data)
+        if (projectsResult.response.ok) setProjects(projectsResult.data)
         if (reportResult.response.ok) setMonthlyReport(reportResult.data)
         if (errorsResult.response.ok) setDailyErrors(errorsResult.data)
         if (errorSummaryResult.response.ok) setErrorSummary(errorSummaryResult.data)
@@ -555,8 +595,10 @@ function App() {
       } else {
         setUser(null)
         setTasks([])
+        setUpcomingWork([])
         setMessages([])
         setMembers([])
+        setProjects([])
         setDailyReview({ date: '', members: [] })
         setDailyErrors([])
         setErrorSummary({ total: 0, open: 0, resolved: 0, critical: 0 })
@@ -579,6 +621,25 @@ function App() {
   const visibleTasks = taskScope === 'mine' ? myTasks : tasks
   const visibleBlockedTasks = useMemo(() => visibleTasks.filter((task) => task.blocked), [visibleTasks])
   const openDailyErrors = useMemo(() => dailyErrors.filter((error) => !['Resolved', 'Prevented'].includes(error.status)), [dailyErrors])
+  const filteredUpcomingWork = useMemo(() => {
+    const query = issueSearch.trim().toLowerCase()
+    return upcomingWork.filter((task) => {
+      const projectMatches = upcomingProjectFilter === 'all'
+        || (upcomingProjectFilter === 'none' ? !task.project : String(task.project) === upcomingProjectFilter)
+      const statusMatches = upcomingStatusFilter === 'all'
+        || (upcomingStatusFilter === 'open' ? task.status !== 'Done' : task.status === upcomingStatusFilter)
+      const assignmentMatches = upcomingAssignmentFilter === 'all'
+        || (upcomingAssignmentFilter === 'unassigned' ? !task.assigned_to : Boolean(task.assigned_to))
+      const searchMatches = !query
+        || task.task.toLowerCase().includes(query)
+        || (task.project_name || '').toLowerCase().includes(query)
+        || (task.assigned_to_name || task.owner || '').toLowerCase().includes(query)
+        || `tb-${task.id}`.includes(query)
+      return projectMatches && statusMatches && assignmentMatches && searchMatches
+    })
+  }, [issueSearch, upcomingAssignmentFilter, upcomingProjectFilter, upcomingStatusFilter, upcomingWork])
+  const upcomingNeedsAssignment = useMemo(() => upcomingWork.filter((task) => !task.assigned_to).length, [upcomingWork])
+  const initials = (value = '') => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'
 
   const visibleMessages = useMemo(() => {
     return messages.filter((message) => {
@@ -726,6 +787,7 @@ function App() {
   }, [dailyUpdateStats, taskScope, tasksByStatus, user?.role, visibleBlockedTasks.length, visibleTasks.length])
 
   const today = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${selectedDate}T00:00:00`))
+  const formatWorkDate = (value) => new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${value}T00:00:00`))
   const flowCopy = isLeader
     ? 'Assign work, spot blockers, and move the team forward.'
     : 'See your tasks, update progress, and flag blockers fast.'
@@ -817,6 +879,11 @@ function App() {
     setTaskForm((current) => ({ ...current, [name]: value }))
   }
 
+  const handleUpcomingEditChange = (event) => {
+    const { name, value } = event.target
+    setUpcomingEditForm((current) => ({ ...current, [name]: value }))
+  }
+
   const handleDateChange = (event) => {
     const date = event.target.value
     setSelectedDate(date)
@@ -854,6 +921,23 @@ function App() {
   const handlePasswordChange = (event) => {
     const { name, value } = event.target
     setPasswordForm((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleAdminMemberChange = (event) => {
+    const { name, value } = event.target
+    if (name === 'member_id') {
+      const member = members.find((item) => String(item.id) === value)
+      setAdminMemberForm({
+        member_id: value,
+        display_name: member?.display_name || '',
+        username: member?.username || '',
+        role: member?.role || 'Member',
+        new_password: '',
+      })
+      return
+    }
+
+    setAdminMemberForm((current) => ({ ...current, [name]: value }))
   }
 
   const handleLearningChange = (event) => {
@@ -970,6 +1054,37 @@ function App() {
     }
   }
 
+  const handleAdminMemberSubmit = async (event) => {
+    event.preventDefault()
+    if (!adminMemberForm.member_id) return
+    setLoading(true)
+    setStatusMessage('')
+
+    try {
+      const payload = {
+        display_name: adminMemberForm.display_name,
+        role: adminMemberForm.role,
+      }
+      if (adminMemberForm.username.trim()) payload.new_username = adminMemberForm.username.trim()
+      if (adminMemberForm.new_password) payload.new_password = adminMemberForm.new_password
+
+      const { response, data } = await fetchJson(`${API_BASE}/members/${adminMemberForm.member_id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) throw new Error(data?.new_username?.[0] || data?.new_password?.[0] || data?.detail || 'Could not update member')
+
+      setStatusMessage('Member account updated')
+      setAdminMemberForm(initialAdminMemberForm)
+      await refreshData(true)
+    } catch (error) {
+      setStatusMessage(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleLearningSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
@@ -1056,6 +1171,7 @@ function App() {
       if (!payload.start_time) delete payload.start_time
       if (!payload.end_time) delete payload.end_time
       if (!payload.assigned_to) delete payload.assigned_to
+      if (!payload.project) delete payload.project
 
       const { response } = await fetchJson(`${API_BASE}/tasks/`, {
         method: 'POST',
@@ -1086,6 +1202,76 @@ function App() {
 
       if (!response.ok) throw new Error('Unable to update task')
 
+      await refreshData(true)
+    } catch (error) {
+      setStatusMessage(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const assignTask = async (taskId, assignedTo) => {
+    setLoading(true)
+    setStatusMessage('')
+
+    try {
+      const { response } = await fetchJson(`${API_BASE}/tasks/${taskId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assigned_to: assignedTo || null }),
+      })
+
+      if (!response.ok) throw new Error('Unable to assign task')
+
+      setStatusMessage('Task assigned')
+      await refreshData(true)
+    } catch (error) {
+      setStatusMessage(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startUpcomingEdit = (task) => {
+    setEditingUpcomingId(task.id)
+    setUpcomingEditForm({
+      task: task.task || '',
+      owner: task.owner || displayName,
+      assigned_to: task.assigned_to || '',
+      project: task.project || '',
+      status: task.status || 'Backlog',
+      blocker: task.blocker || '',
+      start_time: task.start_time ? task.start_time.slice(0, 5) : '',
+      end_time: task.end_time ? task.end_time.slice(0, 5) : '',
+      work_date: task.work_date || selectedDate,
+    })
+  }
+
+  const cancelUpcomingEdit = () => {
+    setEditingUpcomingId(null)
+    setUpcomingEditForm(initialTaskForm)
+  }
+
+  const saveUpcomingEdit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setStatusMessage('')
+
+    try {
+      const payload = { ...upcomingEditForm }
+      if (!payload.assigned_to) payload.assigned_to = null
+      if (!payload.project) payload.project = null
+      if (!payload.start_time) payload.start_time = null
+      if (!payload.end_time) payload.end_time = null
+
+      const { response } = await fetchJson(`${API_BASE}/tasks/${editingUpcomingId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) throw new Error('Unable to update upcoming work')
+
+      setStatusMessage('Upcoming work updated')
+      cancelUpcomingEdit()
       await refreshData(true)
     } catch (error) {
       setStatusMessage(error.message)
@@ -1357,7 +1543,25 @@ function App() {
 
             <label>
               Password
-              <input name="password" type="password" value={authForm.password} onChange={handleAuthChange} autoComplete="current-password" required />
+              <span className="password-field">
+                <input
+                  name="password"
+                  type={showAuthPassword ? 'text' : 'password'}
+                  value={authForm.password}
+                  onChange={handleAuthChange}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowAuthPassword((isVisible) => !isVisible)}
+                  aria-label={showAuthPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showAuthPassword}
+                >
+                  {showAuthPassword ? 'Hide' : 'Show'}
+                </button>
+              </span>
             </label>
 
             {authMode === 'register' ? (
@@ -1384,11 +1588,43 @@ function App() {
 
   return (
     <main className="app-shell">
+      <aside className="work-sidebar" aria-label="Workspace navigation">
+        <div className="sidebar-brand">
+          <div className="brand-mark">TB</div>
+          <div>
+            <strong>Team Board</strong>
+            <span>Work tracker</span>
+          </div>
+        </div>
+        <nav className="sidebar-nav">
+          <button type="button" className="active" onClick={() => document.getElementById('client-work')?.scrollIntoView({ behavior: 'smooth' })}>
+            <span>Client work</span>
+            <strong>{upcomingWork.length}</strong>
+          </button>
+          <button type="button" onClick={() => document.getElementById('today-updates')?.scrollIntoView({ behavior: 'smooth' })}>
+            <span>Today updates</span>
+            <strong>{dailyUpdateStats.submitted.length || visibleTasks.length}</strong>
+          </button>
+          <button type="button" onClick={() => document.getElementById('task-board')?.scrollIntoView({ behavior: 'smooth' })}>
+            <span>Task board</span>
+            <strong>{visibleTasks.length}</strong>
+          </button>
+          <button type="button" onClick={() => document.getElementById('chat')?.scrollIntoView({ behavior: 'smooth' })}>
+            <span>Messages</span>
+            <strong>{messages.length}</strong>
+          </button>
+        </nav>
+        <div className="sidebar-focus">
+          <span>Needs assignment</span>
+          <strong>{upcomingNeedsAssignment}</strong>
+        </div>
+      </aside>
+
       <header className="app-header">
         <div className="header-copy">
           <p className="eyebrow">{today}</p>
-          <h1>Team Board</h1>
-          <p>{flowCopy}</p>
+          <h1>Work management</h1>
+          <p>Track client requests, assign owners, and move work through the team.</p>
         </div>
         <div className="user-menu">
           <div className="date-controls">
@@ -1524,8 +1760,200 @@ function App() {
         </div>
       </section>
 
+      <section className="upcoming-work-panel panel" id="client-work" aria-label="Upcoming work">
+        <div className="jira-project-bar">
+          <div>
+            <p>Projects / Team Board</p>
+            <h2>Client requested work</h2>
+          </div>
+          <button type="button" className="jira-create-button" onClick={() => document.querySelector('.quick-add')?.scrollIntoView({ behavior: 'smooth' })}>
+            Create
+          </button>
+        </div>
+
+        <div className="jira-tabs" aria-label="Issue views">
+          <button type="button" className="active">List</button>
+          <button type="button">Board</button>
+          <button type="button">Calendar</button>
+          <button type="button">Reports</button>
+        </div>
+
+        <div className="jira-toolbar">
+          <label className="jira-search">
+            <span>Search</span>
+            <input value={issueSearch} onChange={(event) => setIssueSearch(event.target.value)} placeholder="Search issues" />
+          </label>
+          <label>
+            Project
+            <select value={upcomingProjectFilter} onChange={(event) => setUpcomingProjectFilter(event.target.value)}>
+              <option value="all">All projects</option>
+              <option value="none">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={upcomingStatusFilter} onChange={(event) => setUpcomingStatusFilter(event.target.value)}>
+              <option value="open">Open</option>
+              <option value="all">All</option>
+              {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Assignee
+            <select value={upcomingAssignmentFilter} onChange={(event) => setUpcomingAssignmentFilter(event.target.value)}>
+              <option value="all">All</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="assigned">Assigned</option>
+            </select>
+          </label>
+          <div className="jira-result-count">
+            <strong>{filteredUpcomingWork.length}</strong>
+            <span>of {upcomingWork.length}</span>
+          </div>
+        </div>
+
+        {filteredUpcomingWork.length ? (
+          <div className="upcoming-table-head" aria-hidden="true">
+            <span>Type</span>
+            <span>Key</span>
+            <span>Summary</span>
+            <span>Status</span>
+            <span>Assignee</span>
+            <span>Due date</span>
+            <span></span>
+          </div>
+        ) : null}
+
+        <div className="upcoming-work-list">
+          {filteredUpcomingWork.length ? filteredUpcomingWork.map((task) => (
+            <article className={`upcoming-work-card ${task.blocked ? 'blocked' : ''}`} key={task.id}>
+              {editingUpcomingId === task.id ? (
+                <form className="upcoming-edit-form" onSubmit={saveUpcomingEdit}>
+                  <label className="span-2">
+                    Task
+                    <input name="task" value={upcomingEditForm.task} onChange={handleUpcomingEditChange} required />
+                  </label>
+                  <label>
+                    Project
+                    <select name="project" value={upcomingEditForm.project} onChange={handleUpcomingEditChange}>
+                      <option value="">No project</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Assign to
+                    <select name="assigned_to" value={upcomingEditForm.assigned_to} onChange={handleUpcomingEditChange}>
+                      <option value="">Unassigned</option>
+                      {assignableMembers.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.display_name || member.username}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Date
+                    <input name="work_date" type="date" value={upcomingEditForm.work_date || ''} onChange={handleUpcomingEditChange} required />
+                  </label>
+                  <label>
+                    Status
+                    <select name="status" value={upcomingEditForm.status} onChange={handleUpcomingEditChange}>
+                      {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    From
+                    <input name="start_time" type="time" value={upcomingEditForm.start_time || ''} onChange={handleUpcomingEditChange} />
+                  </label>
+                  <label>
+                    To
+                    <input name="end_time" type="time" value={upcomingEditForm.end_time || ''} onChange={handleUpcomingEditChange} />
+                  </label>
+                  <label className="span-2">
+                    Blocker / note
+                    <textarea name="blocker" value={upcomingEditForm.blocker} onChange={handleUpcomingEditChange} rows="2" />
+                  </label>
+                  <div className="upcoming-edit-actions span-2">
+                    <button type="button" onClick={cancelUpcomingEdit} disabled={loading}>Cancel</button>
+                    <button className="primary-button" type="submit" disabled={loading}>Save</button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="issue-type-cell">
+                    <span className="issue-type-dot">T</span>
+                  </div>
+                  <div className="upcoming-work-key">
+                    <strong>TB-{task.id}</strong>
+                  </div>
+                  <div className="upcoming-work-main">
+                    <div className="task-card-top">
+                      <strong>{task.task}</strong>
+                    </div>
+                    <p>{task.project_name || 'No project selected'}</p>
+                    {task.blocker ? <div className="blocker-note">{task.blocker}</div> : null}
+                  </div>
+                  <div className="upcoming-work-project">
+                    <span className={`jira-status ${statusClass(task.status)}`}>{task.status}</span>
+                  </div>
+                  <div className="upcoming-work-owner">
+                    <div className={`assignee-pill ${!task.assigned_to ? 'unassigned' : ''}`}>
+                      <span>{task.assigned_to ? initials(task.assigned_to_name) : 'UA'}</span>
+                      <strong>{task.assigned_to ? task.assigned_to_name : 'Unassigned'}</strong>
+                    </div>
+                    {isLeader ? (
+                      <>
+                        <select
+                          value={task.assigned_to || ''}
+                          onChange={(event) => assignTask(task.id, event.target.value)}
+                          disabled={loading}
+                          aria-label={`Assign ${task.task}`}
+                        >
+                          <option value="">Assign member</option>
+                          {assignableMembers.map((member) => (
+                            <option key={member.user_id} value={member.user_id}>
+                              {member.display_name || member.username}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="upcoming-work-date">
+                    <strong>{formatWorkDate(task.work_date)}</strong>
+                    <span>{task.start_time ? task.start_time.slice(0, 5) : 'Any time'}</span>
+                  </div>
+                  <div className="issue-actions">
+                    {isLeader ? (
+                      <button type="button" className="upcoming-edit-button" onClick={() => startUpcomingEdit(task)} aria-label={`Edit TB-${task.id}`}>
+                        Edit
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </article>
+          )) : (
+            <p className="empty-state">No upcoming work matches these filters.</p>
+          )}
+        </div>
+      </section>
+
       {user.role === 'Admin' ? (
-        <section className="updates-dashboard-grid" aria-label="Daily update dashboard">
+        <section className="updates-dashboard-grid" id="today-updates" aria-label="Daily update dashboard">
           <section className="today-updates-panel panel">
             <div className="panel-heading">
               <div>
@@ -1747,6 +2175,18 @@ function App() {
           <label className="span-2">
             Task
             <input name="task" value={taskForm.task} onChange={handleTaskChange} placeholder="What needs to move today?" required />
+          </label>
+
+          <label>
+            Project
+            <select name="project" value={taskForm.project} onChange={handleTaskChange}>
+              <option value="">Choose project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           {isLeader ? (
@@ -2023,33 +2463,81 @@ function App() {
 
       {isPasswordModalOpen ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="password-modal panel" role="dialog" aria-modal="true" aria-label="Change password">
+          <section className={`password-modal panel ${user.role === 'Admin' ? 'admin-account-modal' : ''}`} role="dialog" aria-modal="true" aria-label="Account settings">
             <div className="panel-heading">
               <div>
                 <p className="eyebrow">Account</p>
-                <h2>Change password</h2>
+                <h2>Account settings</h2>
               </div>
               <button type="button" className="close-button" onClick={() => setIsPasswordModalOpen(false)} aria-label="Close password form">
                 X
               </button>
             </div>
 
-            <form className="password-form" onSubmit={handlePasswordSubmit}>
-              <label>
-                Current password
-                <input name="current_password" type="password" value={passwordForm.current_password} onChange={handlePasswordChange} autoComplete="current-password" required />
-              </label>
-              <label>
-                New password
-                <input name="new_password" type="password" value={passwordForm.new_password} onChange={handlePasswordChange} autoComplete="new-password" required />
-              </label>
-              <label>
-                Confirm new password
-                <input name="confirm_password" type="password" value={passwordForm.confirm_password} onChange={handlePasswordChange} autoComplete="new-password" required />
-              </label>
-              {statusMessage ? <p className="form-message">{statusMessage}</p> : null}
-              <button className="primary-button" type="submit" disabled={loading}>Update password</button>
-            </form>
+            <div className="account-settings-grid">
+              <form className="password-form account-card" onSubmit={handlePasswordSubmit}>
+                <div className="mini-heading">
+                  <strong>My password</strong>
+                  <span>Update your own login</span>
+                </div>
+                <label>
+                  Current password
+                  <input name="current_password" type="password" value={passwordForm.current_password} onChange={handlePasswordChange} autoComplete="current-password" required />
+                </label>
+                <label>
+                  New password
+                  <input name="new_password" type="password" value={passwordForm.new_password} onChange={handlePasswordChange} autoComplete="new-password" required />
+                </label>
+                <label>
+                  Confirm new password
+                  <input name="confirm_password" type="password" value={passwordForm.confirm_password} onChange={handlePasswordChange} autoComplete="new-password" required />
+                </label>
+                <button className="primary-button" type="submit" disabled={loading}>Update my password</button>
+              </form>
+
+              {user.role === 'Admin' ? (
+                <form className="admin-member-form account-card" onSubmit={handleAdminMemberSubmit}>
+                  <div className="mini-heading">
+                    <strong>Admin member access</strong>
+                    <span>Change username, display name, role, or reset password</span>
+                  </div>
+                  <label className="span-2">
+                    Member
+                    <select name="member_id" value={adminMemberForm.member_id} onChange={handleAdminMemberChange} required>
+                      <option value="">Choose member</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.display_name || member.username} ({member.role})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Display name
+                    <input name="display_name" value={adminMemberForm.display_name} onChange={handleAdminMemberChange} placeholder="Visible name" required />
+                  </label>
+                  <label>
+                    Username
+                    <input name="username" value={adminMemberForm.username} onChange={handleAdminMemberChange} placeholder="Login username" required />
+                  </label>
+                  <label>
+                    Role
+                    <select name="role" value={adminMemberForm.role} onChange={handleAdminMemberChange}>
+                      <option>Admin</option>
+                      <option>Manager</option>
+                      <option>Member</option>
+                    </select>
+                  </label>
+                  <label>
+                    New password
+                    <input name="new_password" type="password" value={adminMemberForm.new_password} onChange={handleAdminMemberChange} placeholder="Leave blank to keep current" autoComplete="new-password" />
+                  </label>
+                  <button className="primary-button span-2" type="submit" disabled={loading || !adminMemberForm.member_id}>Save member account</button>
+                </form>
+              ) : null}
+            </div>
+
+            {statusMessage ? <p className="form-message account-status">{statusMessage}</p> : null}
           </section>
         </div>
       ) : null}
@@ -2284,7 +2772,7 @@ function App() {
       ) : null}
 
       {visibleTasks.length ? (
-      <section className="board-grid" aria-label="Tasks by status">
+      <section className="board-grid" id="task-board" aria-label="Tasks by status">
         {statuses.map((status) => (
           <section className="lane panel" key={status}>
             <div className="lane-heading">
@@ -2333,7 +2821,7 @@ function App() {
       </section>
       ) : null}
 
-      <section className="panel chat-panel">
+      <section className="panel chat-panel" id="chat">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Team</p>

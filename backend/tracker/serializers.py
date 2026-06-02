@@ -57,11 +57,44 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    new_username = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    new_password = serializers.CharField(write_only=True, required=False, allow_blank=True, min_length=8)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
 
     class Meta:
         model = Profile
-        fields = ['user_id', 'username', 'display_name', 'role']
+        fields = ['id', 'user_id', 'username', 'new_username', 'new_password', 'display_name', 'role']
+
+    def validate_new_username(self, value):
+        username = value.strip()
+        if not username:
+            return ''
+
+        profile = self.instance
+        queryset = Profile.objects.filter(user__username=username)
+        if profile:
+            queryset = queryset.exclude(pk=profile.pk)
+        if queryset.exists():
+            raise serializers.ValidationError('Username already exists')
+        return username
+
+    def update(self, instance, validated_data):
+        new_username = validated_data.pop('new_username', '').strip()
+        new_password = validated_data.pop('new_password', '')
+        instance = super().update(instance, validated_data)
+
+        user = instance.user
+        update_fields = []
+        if new_username:
+            user.username = new_username
+            update_fields.append('username')
+        if new_password:
+            user.set_password(new_password)
+            update_fields.append('password')
+        if update_fields:
+            user.save(update_fields=update_fields)
+
+        return instance
 
 
 class MessageSerializer(serializers.ModelSerializer):

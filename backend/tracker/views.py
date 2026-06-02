@@ -107,6 +107,17 @@ def display_name_for_user(user):
     return profile.display_name if profile and profile.display_name else user.username
 
 
+def sync_task_projects_from_it_projects():
+    for it_project in ITProject.objects.all():
+        Project.objects.get_or_create(
+            name=it_project.name,
+            defaults={
+                'description': it_project.notes or it_project.tech_stack or '',
+                'is_active': it_project.status != 'Deprecated',
+            },
+        )
+
+
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
@@ -156,6 +167,21 @@ class TaskViewSet(viewsets.ModelViewSet):
             'pending_blockers': pending_blockers,
             'in_progress': in_progress,
         }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def upcoming(self, request):
+        selected_date = parse_date(request.query_params.get('from') or timezone.localdate().isoformat()) or timezone.localdate()
+        try:
+            days = int(request.query_params.get('days', 14))
+        except (TypeError, ValueError):
+            days = 14
+        days = min(max(days, 1), 90)
+        end_date = selected_date + timedelta(days=days)
+        tasks = Task.objects.select_related('assigned_to', 'assigned_to__profile', 'project').filter(
+            work_date__gte=selected_date,
+            work_date__lte=end_date,
+        ).exclude(status='Done').order_by('work_date', 'start_time', 'updated_at')
+        return Response(TaskSerializer(tasks[:30], many=True).data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='monthly-report')
     def monthly_report(self, request):
@@ -275,9 +301,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if user_role(self.request.user) in LEADER_ROLES:
-            return Project.objects.all()
-        return Project.objects.filter(Q(tasks__assigned_to=self.request.user) | Q(tasks__owner__in=user_display_names(self.request.user))).distinct()
+        sync_task_projects_from_it_projects()
+        return Project.objects.all()
 
     def create(self, request, *args, **kwargs):
         if user_role(request.user) not in LEADER_ROLES:

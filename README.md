@@ -7,8 +7,9 @@ A minimal Django + React workspace for task tracking, blocker visibility, role-b
 1. Start PostgreSQL:
    `sudo docker compose up -d`
 2. Create backend environment:
-   `python3 -m venv .venv`
+   `python3.12 -m venv .venv`
    `. .venv/bin/activate`
+   `python --version  # verify 3.12.x`
    `pip install -r backend/requirements.txt`
 3. Apply migrations:
    `cd backend && python manage.py migrate`
