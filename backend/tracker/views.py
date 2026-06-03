@@ -177,8 +177,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             days = 14
         days = min(max(days, 1), 90)
         end_date = selected_date + timedelta(days=days)
-        tasks = Task.objects.select_related('assigned_to', 'assigned_to__profile', 'project').filter(
-            work_date__gte=selected_date,
+        tasks = self.get_queryset().select_related('assigned_to', 'assigned_to__profile', 'project').filter(
             work_date__lte=end_date,
         ).exclude(status='Done').order_by('work_date', 'start_time', 'updated_at')
         return Response(TaskSerializer(tasks[:30], many=True).data, status=status.HTTP_200_OK)
