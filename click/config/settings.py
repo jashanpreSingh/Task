@@ -6,8 +6,13 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env (never commit this file)
+# Load environment variables from .env (never commit these files).
+# Prefer a gate-specific click/.env, then fall back to the Team Board project
+# .env one level up so the gate app can reuse the same DB credentials without
+# duplicating secrets. load_dotenv does not override already-set vars, so the
+# first file and real environment variables win.
 load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR.parent / '.env')
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'insecure-dev-key')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes')

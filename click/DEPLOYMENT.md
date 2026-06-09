@@ -7,25 +7,22 @@ The gate app is shown inside Team Board via an iframe pointing at `/gate/` on th
 Run these **once** on the server (the CI pipeline handles code, venv, migrate,
 collectstatic and `systemctl restart gate` on every push).
 
-## 1. Server `.env`
+## 1. Environment / database
 
-Create `/var/www/teamboard/click/.env` (never committed):
+No separate secrets file is required. The gate app reads the Team Board project
+`.env` (`/var/www/teamboard/.env`) as a fallback, so it reuses the same Postgres
+credentials and database (`task`). `SCRIPT_PREFIX=/gate` is set by the systemd
+unit (step 2), so the app mounts correctly under `/gate/`.
+
+Only create `/var/www/teamboard/click/.env` if you want the gate app to use a
+**different** database or settings than Team Board, e.g.:
 
 ```env
-DJANGO_SECRET_KEY=CHANGE_ME_LONG_RANDOM
-DJANGO_DEBUG=False
+POSTGRES_DB=gate
 DJANGO_ALLOWED_HOSTS=teamboard.jivo.in,127.0.0.1,localhost
-SCRIPT_PREFIX=/gate
-
-POSTGRES_DB=task
-POSTGRES_USER=teamboard_user
-POSTGRES_PASSWORD=CHANGE_ME
-POSTGRES_HOST=127.0.0.1
-POSTGRES_PORT=5432
 ```
 
-`SCRIPT_PREFIX=/gate` is required — without it the app serves at root and the
-iframe paths break.
+Values in `click/.env` override the Team Board `.env` fallback.
 
 ## 2. systemd service
 
