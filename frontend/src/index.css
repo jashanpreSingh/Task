@@ -582,6 +582,11 @@ textarea:focus {
   box-shadow: var(--shadow-sm);
 }
 
+.header-actions .gate-button {
+  color: #166534;
+  background: #ecfccb;
+}
+
 .header-actions .it-register-button {
   color: #854d0e;
   background: #fffbeb;

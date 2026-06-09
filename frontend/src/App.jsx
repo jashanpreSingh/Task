@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000/api`
+const GATE_URL = import.meta.env.VITE_GATE_URL || `${window.location.protocol}//${window.location.hostname}:8731/`
 const roleFilterOptions = ['All', 'Admin', 'Manager', 'Member']
 const statuses = ['Backlog', 'In Progress', 'Blocked', 'Done']
 const errorStatuses = ['Open', 'Fixing', 'Resolved']
@@ -1644,6 +1645,9 @@ function App() {
             </div>
             {user.role === 'Admin' ? (
               <>
+                <button className="gate-button" type="button" onClick={() => window.open(GATE_URL, '_blank', 'noopener')}>
+                  Gate
+                </button>
                 <button className="it-register-button" type="button" onClick={openItRegister}>
                   IT Register
                 </button>
