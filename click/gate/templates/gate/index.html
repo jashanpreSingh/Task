@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gate Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* dark theme (default) */
+    --bg0:#0a1206; --panel:rgba(30,42,20,.7); --panel2:#27360f;
+    --jivo:#8cc63f; /* JIVO brand green */
+    --accent:#a3e635; --accent-2:#84cc16; --grad:linear-gradient(135deg,#a3e635,#65a30d);
+    --grad-green:linear-gradient(135deg,#a3e635,#4d7c0f);
+    --good:#a3e635; --danger:#fb7185; --text:#eef6e3; --muted:#aebf9a; --border:rgba(174,191,154,.18);
+    --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+    --header:rgba(10,18,6,.72); --input:rgba(8,14,4,.5); --th:rgba(30,42,20,.85);
+    --glow1:rgba(163,230,53,.14); --glow2:rgba(132,204,22,.16); --veil:.78;
+  }
+  body.light{
+    --bg0:#eef3e6; --panel:rgba(255,255,255,.82); --panel2:#e9f0db;
+    --accent:#4d7c0f; --accent-2:#3f6212;
+    --text:#1b2e08; --muted:#5d6e49; --border:rgba(77,124,15,.2);
+    --shadow:0 12px 30px -16px rgba(60,90,20,.35);
+    --header:rgba(255,255,255,.8); --input:#ffffff; --th:#e3edd1;
+    --glow1:rgba(132,204,22,.22); --glow2:rgba(101,163,13,.18); --veil:.45;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--text); min-height:100vh;
+    background:
+      radial-gradient(900px 500px at 12% -8%,var(--glow1),transparent 60%),
+      radial-gradient(800px 500px at 100% 0%,var(--glow2),transparent 55%),
+      var(--bg0);
+    background-attachment:fixed; transition:background .3s, color .3s;
+  }
+  /* ---------- header ---------- */
+  header{
+    padding:14px 26px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:var(--header); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;
+  }
+  .logo{
+    width:54px; height:54px; border-radius:15px; display:grid; place-items:center;
+    background:var(--grad); box-shadow:0 8px 22px -6px rgba(132,204,22,.65);
+  }
+  .logo svg{width:34px; height:30px}
+  .brand{display:flex; flex-direction:column; line-height:1.1; flex:1}
+  .brand b{font-size:22px; font-weight:800; letter-spacing:3px}
+  .brand small{color:var(--muted); font-size:10px; letter-spacing:1.6px; text-transform:uppercase}
+  .navbtn{
+    background:rgba(148,163,184,.08); color:var(--text); border:1px solid var(--border);
+    padding:9px 16px; border-radius:11px; cursor:pointer; font-size:13px; font-weight:600;
+    font-family:inherit; transition:.18s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .navbtn:hover{border-color:var(--accent); transform:translateY(-1px); background:rgba(56,189,248,.1)}
+  .navbtn.active{background:var(--grad); color:#06283d; border-color:transparent; box-shadow:0 8px 18px -8px rgba(56,189,248,.7)}
+  /* ---------- layout ---------- */
+  .wrap{max-width:1080px; margin:0 auto; padding:30px 24px 60px}
+  .crumbs{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13.5px; margin-bottom:24px}
+  .crumbs span{color:var(--muted)}
+  .crumbs a{color:var(--accent); cursor:pointer; text-decoration:none; font-weight:600}
+  .crumbs a:hover{text-decoration:underline}
+  .crumbs .sep{color:#475569}
+  .section-title{font-size:13px; color:var(--muted); margin:0 0 18px; text-transform:uppercase; letter-spacing:2px; font-weight:700}
+  /* ---------- full-page gate background (Home only) ---------- */
+  #bgImage{
+    position:fixed; inset:0; z-index:-2; background-size:cover; background-position:center;
+    background-image:url('/static/gate/gate.jpg');
+    opacity:0; transition:opacity .5s ease; pointer-events:none;
+  }
+  #bgImage::after{ /* veil so text stays readable */
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(to bottom,rgba(6,12,3,calc(var(--veil) - .25)),rgba(6,12,3,var(--veil)));
+  }
+  body.light #bgImage::after{
+    background:linear-gradient(to bottom,rgba(245,250,238,calc(var(--veil) + .1)),rgba(238,243,230,calc(var(--veil) + .35)));
+  }
+  body.home-bg #bgImage{opacity:1}
+  /* welcome heading on Home */
+  .welcome{margin-bottom:26px}
+  .welcome .kicker{font-size:11.5px; letter-spacing:2.5px; text-transform:uppercase; color:var(--accent); font-weight:800}
+  .welcome .wtitle{font-size:32px; font-weight:800; letter-spacing:.3px; margin-top:4px; text-shadow:0 2px 14px rgba(0,0,0,.5)}
+  .welcome .wsub{font-size:14px; color:#d4e2c5; margin-top:2px}
+  /* ---------- cards ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(225px,1fr)); gap:18px}
+  .card{
+    position:relative; overflow:hidden; cursor:pointer; padding:24px 22px; border-radius:18px;
+    background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border);
+    box-shadow:var(--shadow); transition:.2s; display:flex; flex-direction:column; gap:10px;
+    animation:rise .4s ease both;
+  }
+  .card::before{content:""; position:absolute; inset:0; background:var(--grad); opacity:0; transition:.2s}
+  .card:hover{transform:translateY(-5px); border-color:transparent}
+  .card:hover::before{opacity:.10}
+  .card .ic{
+    width:48px; height:48px; border-radius:14px; display:grid; place-items:center; font-size:24px;
+    background:rgba(56,189,248,.12); border:1px solid var(--border);
+  }
+  .card .t{font-size:17px; font-weight:700; z-index:1}
+  .card .d{font-size:12.5px; color:var(--muted); z-index:1; line-height:1.5}
+  .card .go{position:absolute; top:22px; right:20px; color:var(--muted); transition:.2s; font-size:18px}
+  .card:hover .go{color:var(--accent); transform:translateX(3px)}
+  @keyframes rise{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+  /* ---------- big home cards ---------- */
+  .grid.home{grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:24px; max-width:760px; margin:8vh auto 0}
+  .card.big{
+    padding:40px 34px; border-radius:26px; gap:18px; align-items:flex-start;
+    background:var(--panel); border:1px solid var(--border);
+  }
+  .card.big::before{background:var(--grad)}
+  .card.big:hover{transform:translateY(-8px) scale(1.015); box-shadow:0 26px 50px -18px rgba(132,204,22,.4)}
+  .card.big .ic{
+    width:74px; height:74px; border-radius:20px; font-size:38px;
+    background:var(--grad); border:none; box-shadow:0 12px 26px -10px rgba(132,204,22,.7);
+  }
+  .card.big .t{font-size:26px; font-weight:800; letter-spacing:.3px}
+  .card.big .d{font-size:13.5px; line-height:1.6; min-height:22px}
+  .card.big .cta{
+    z-index:1; margin-top:6px; display:inline-flex; align-items:center; gap:8px;
+    font-weight:700; font-size:14px; color:var(--accent);
+  }
+  .card.big .cta span{transition:.2s}
+  .card.big:hover .cta span{transform:translateX(5px)}
+  @media(max-width:520px){ .grid.home{margin-top:5vh} .card.big{padding:30px 26px} .card.big .t{font-size:22px} }
+  /* ---------- back ---------- */
+  .back{
+    background:rgba(148,163,184,.08); color:var(--text); border:1px solid var(--border);
+    padding:8px 15px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600;
+    font-family:inherit; margin-bottom:20px; transition:.18s;
+  }
+  .back:hover{border-color:var(--accent); transform:translateX(-2px)}
+  /* ---------- form ---------- */
+  .form{
+    background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border);
+    border-radius:20px; padding:28px; max-width:620px; box-shadow:var(--shadow); animation:rise .4s ease both;
+  }
+  .form h2{margin:0 0 4px; font-size:22px; font-weight:800}
+  .form .sub{color:var(--muted); font-size:13px; margin-bottom:22px}
+  .field{margin-bottom:17px}
+  label{display:block; font-size:12.5px; margin-bottom:7px; color:var(--muted); font-weight:600}
+  input,select,textarea{
+    width:100%; padding:11px 14px; border-radius:11px; border:1px solid var(--border);
+    background:var(--input); color:var(--text); font-size:14px; font-family:inherit; transition:.15s;
+  }
+  input::placeholder,textarea::placeholder{color:#64748b}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+  .btn{
+    background:var(--grad); color:#06283d; border:none; padding:12px 22px; border-radius:12px;
+    font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; margin-top:6px; transition:.18s;
+    box-shadow:0 10px 22px -10px rgba(56,189,248,.7);
+  }
+  .btn.green{background:var(--grad-green); box-shadow:0 10px 22px -10px rgba(34,197,94,.7); color:#04240f}
+  .btn.sm{padding:9px 15px; font-size:13px; margin:0; box-shadow:none}
+  .btn:hover{transform:translateY(-2px); filter:brightness(1.05)}
+  .btn:disabled{opacity:.65; transform:none; cursor:default}
+  .ok{
+    background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.5); color:#86efac;
+    padding:14px 16px; border-radius:12px; margin-top:18px; font-size:14px; display:none; animation:rise .3s ease both;
+  }
+  /* ---------- pills ---------- */
+  .pill{font-size:11px; padding:4px 11px; border-radius:99px; font-weight:700; display:inline-block}
+  .pill.open{background:rgba(52,211,153,.16); color:var(--good)}
+  .pill.closed{background:rgba(148,163,184,.16); color:var(--muted)}
+  /* ---------- tables ---------- */
+  .scroll{overflow-x:auto; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow)}
+  table.sheet{width:100%; border-collapse:collapse; background:var(--panel); backdrop-filter:blur(8px); font-size:13px}
+  table.sheet th,table.sheet td{padding:13px 16px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap}
+  table.sheet th{background:var(--th); color:var(--muted); text-transform:uppercase; font-size:11px; letter-spacing:.8px; font-weight:700}
+  table.sheet tr:last-child td{border-bottom:none}
+  table.sheet tbody tr{transition:.12s}
+  table.sheet tbody tr:hover td{background:rgba(56,189,248,.06)}
+  .empty{padding:48px; text-align:center; color:var(--muted)}
+  .del{color:var(--danger); cursor:pointer; font-weight:800; padding:2px 6px; border-radius:6px}
+  .del:hover{background:rgba(251,113,133,.14)}
+  .count{font-size:12.5px; color:var(--muted); font-weight:600}
+  .toolbar{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:18px}
+  .toolbar select,.toolbar input{width:auto; min-width:160px}
+  .toolbar .spacer{flex:1}
+  .toolbar strong{font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px}
+  /* ---------- manage grid ---------- */
+  table.grid-t{border-collapse:separate; border-spacing:0; background:var(--panel); width:100%}
+  table.grid-t th,table.grid-t td{border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:5px}
+  table.grid-t th{background:var(--th); position:sticky; top:0}
+  .colhead{display:flex; gap:6px; align-items:center; padding:3px}
+  .colhead input{font-weight:700; min-width:150px; text-transform:uppercase; font-size:11.5px; letter-spacing:.5px; background:transparent; border-color:transparent}
+  .colhead input:hover{border-color:var(--border)}
+  .cell-input{min-width:160px; border:1px solid transparent; background:transparent}
+  .cell-input:hover{border-color:var(--border)}
+  .cell-input:focus{border-color:var(--accent); background:rgba(11,17,32,.7)}
+  .xbtn{background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:15px; padding:2px 6px; border-radius:6px}
+  .xbtn:hover{background:rgba(251,113,133,.14)}
+  .hint{font-size:12.5px; color:var(--muted); margin:0 0 18px; line-height:1.6}
+  .gridbar{display:flex; gap:10px; margin:16px 0; flex-wrap:wrap; align-items:center}
+  #saveTag{font-size:12px; color:var(--good); font-weight:600}
+  /* hero stats */
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:26px}
+  .stat{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px 18px; backdrop-filter:blur(8px)}
+  .stat .n{font-size:26px; font-weight:800; background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .stat .l{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-top:2px}
+</style>
+</head>
+<body>
+<div id="bgImage"></div>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 7 C 13 1, 21 1, 27 6" stroke="#1a2e05" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M8 20 C 14 30, 26 30, 32 20" stroke="#1a2e05" stroke-width="3.4" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div class="brand"><b>JIVO</b><small>Wellness · Gate Management</small></div>
+  <button class="navbtn active" id="nav-home" onclick="showApp()">➕ New Entry</button>
+  <button class="navbtn" id="nav-sheet" onclick="showSheet()">📋 Data Sheet</button>
+  <button class="navbtn" id="nav-manage" onclick="showManage()">⚙️ Manage</button>
+  <button class="navbtn" id="themeBtn" onclick="toggleTheme()" title="Switch theme">🌙</button>
+</header>
+
+<div class="wrap">
+  <div id="appView"><div class="crumbs" id="crumbs"></div><div id="view"></div></div>
+  <div id="sheetView" style="display:none"></div>
+  <div id="manageView" style="display:none"></div>
+</div>
+
+<script>
+/* ===================== API layer (Django + Postgres) ===================== */
+const API = {
+  async getStructure(){ const r=await fetch('/api/structure'); return r.json(); },
+  async saveStructure(s){ await fetch('/api/structure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s)}); },
+  async getRecords(){ const r=await fetch('/api/records'); return (await r.json()).records; },
+  async addRecord(rec){ const r=await fetch('/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}); return r.json(); },
+  async delRecord(id){ await fetch('/api/records/'+encodeURIComponent(id),{method:'DELETE'}); },
+  async closeRecord(id){ const r=await fetch('/api/records/'+encodeURIComponent(id),{method:'POST'}); return r.json(); },
+  async clearRecords(){ await fetch('/api/records/clear',{method:'POST'}); },
+};
+
+let GRID={headers:[],rows:[]};
+let RECORDS=[];
+
+/* pick an emoji icon based on the label text */
+function iconFor(text){
+  const s=(text||'').toLowerCase();
+  const map=[
+    ['gate in','⬇️'],['gate out','⬆️'],['person','🧍'],['visitor','👤'],['labour','👷'],
+    ['employee','💼'],['driver','🧑‍✈️'],['vehicle','🚚'],['empty','🛻'],['loaded','🚛'],
+    ['transport','🚌'],['truck','🚛'],['material','📦'],['raw','🪵'],['finished','🏷️'],
+    ['returnable','🔁'],['non-return','🚫'],['search','🔍'],['verify','✅'],['security','🛂'],
+    ['close','🔒'],['gas','⛽'],['cattle','🐄']
+  ];
+  for(const [k,v] of map){ if(s.includes(k)) return v; }
+  return '📁';
+}
+
+function childValues(prefix){
+  const k=prefix.length;
+  if(k>=GRID.headers.length) return [];
+  const seen=[];
+  GRID.rows.forEach(r=>{
+    if(prefix.every((v,i)=>(r[i]||'')===v)){
+      const val=(r[k]||'').trim();
+      if(val && !seen.includes(val)) seen.push(val);
+    }
+  });
+  return seen;
+}
+
+/* ===================== nav ===================== */
+let path=[];
+const view=document.getElementById('view');
+const crumbsEl=document.getElementById('crumbs');
+function go(p){ path=p; render(); }
+function setNav(a){
+  ['home','sheet','manage'].forEach(n=>document.getElementById('nav-'+n).classList.toggle('active',n===a));
+  document.getElementById('appView').style.display=a==='home'?'block':'none';
+  document.getElementById('sheetView').style.display=a==='sheet'?'block':'none';
+  document.getElementById('manageView').style.display=a==='manage'?'block':'none';
+}
+function showApp(){ setNav('home'); render(); }
+async function showSheet(){ setNav('sheet'); document.body.classList.remove('home-bg'); RECORDS=await API.getRecords(); renderSheet(); }
+function showManage(){ setNav('manage'); document.body.classList.remove('home-bg'); renderManage(); }
+
+function crumbs(){
+  const parts=[{label:"🏠 Home",p:[]}];
+  path.forEach((v,i)=>parts.push({label:v,p:path.slice(0,i+1)}));
+  crumbsEl.innerHTML=parts.map((x,i)=>{
+    const last=i===parts.length-1;
+    return last?`<span>${x.label}</span>`:`<a data-p='${JSON.stringify(x.p)}'>${x.label}</a><span class="sep">›</span>`;
+  }).join(' ');
+  crumbsEl.querySelectorAll('a').forEach(a=>a.onclick=()=>go(JSON.parse(a.dataset.p)));
+}
+function card(title,desc,onclick,big){
+  const el=document.createElement('div'); el.className=big?'card big':'card';
+  el.innerHTML=`<div class="ic">${iconFor(title)}</div><div class="t">${title}</div>`+
+    (big?`<div class="d">${desc||''}</div><div class="cta">Continue <span>→</span></div>`
+        :`<div class="d">${desc||''}</div><div class="go">→</div>`);
+  el.onclick=onclick; return el;
+}
+function backBtn(target){
+  const b=document.createElement('button'); b.className='back'; b.textContent='← Back';
+  b.onclick=()=>go(target); return b;
+}
+function addTitle(txt){ const t=document.createElement('p'); t.className='section-title'; t.textContent=txt; view.appendChild(t); }
+
+/* show the gate photo as a full-page background only on the Home screen */
+function updateBackground(){
+  const onHome = document.getElementById('appView').style.display!=='none' && path.length===0;
+  document.body.classList.toggle('home-bg', onHome);
+}
+function render(){
+  crumbs(); view.innerHTML='';
+  updateBackground();
+  const kids=childValues(path);
+  const isHome=!path.length;
+  if(kids.length){
+    if(path.length){
+      view.appendChild(backBtn(path.slice(0,-1)));
+      const lvl=GRID.headers[path.length]||'Select';
+      addTitle(path[path.length-1]+' — choose '+lvl);
+    }
+    const g=document.createElement('div'); g.className=isHome?'grid home':'grid';
+    kids.forEach((k,i)=>{
+      const sub=childValues([...path,k]);
+      const c=card(k,sub.length?sub.join(" · "):"Fill entry details",()=>go([...path,k]),isHome);
+      c.style.animationDelay=(i*60)+'ms';
+      g.appendChild(c);
+    });
+    view.appendChild(g);
+  } else {
+    view.appendChild(backBtn(path.slice(0,-1)));
+    view.appendChild(buildForm());
+  }
+}
+
+/* ===================== entry form ===================== */
+const LEAF_FIELDS=[
+  {k:'name',l:"Name / Item",req:true},{k:'phone',l:"Phone / Vehicle No."},
+  {k:'reference',l:"ID / Reference No."},{k:'details',l:"Details / Purpose"},
+];
+function buildForm(){
+  const f=document.createElement('div'); f.className='form';
+  f.innerHTML=`<h2>${iconFor(path[path.length-1])} ${path[path.length-1]||'Entry'}</h2><div class="sub">${path.join(' › ')} • New gate pass</div>`;
+  LEAF_FIELDS.forEach(fld=>{
+    const w=document.createElement('div'); w.className='field';
+    w.innerHTML=`<label>${fld.l}${fld.req?' *':''}</label><input id="lf_${fld.k}" placeholder="Enter ${fld.l.toLowerCase()}">`;
+    f.appendChild(w);
+  });
+  const tw=document.createElement('div'); tw.className='field';
+  tw.innerHTML=`<label>In Time</label><input type="datetime-local" id="lf_inTime">`; f.appendChild(tw);
+  const note=document.createElement('div'); note.className='field';
+  note.innerHTML=`<label>Remarks</label><textarea rows="2" id="lf_remarks"></textarea>`; f.appendChild(note);
+
+  const btn=document.createElement('button'); btn.className='btn green'; btn.textContent='✓ Generate Gate Pass';
+  const ok=document.createElement('div'); ok.className='ok';
+  btn.onclick=async ()=>{
+    const name=document.getElementById('lf_name').value.trim();
+    if(!name){ alert('Please fill: '+LEAF_FIELDS[0].l); return; }
+    btn.disabled=true;
+    const payload={
+      dir:path[0]||'', type:path[1]||'', category:path[path.length-1]||'',
+      pathStr:path.join(' › '), name,
+      phone:document.getElementById('lf_phone').value.trim(),
+      reference:document.getElementById('lf_reference').value.trim(),
+      details:document.getElementById('lf_details').value.trim(),
+      inTime:document.getElementById('lf_inTime').value,
+      remarks:document.getElementById('lf_remarks').value.trim(),
+    };
+    const rec=await API.addRecord(payload);
+    RECORDS.unshift(rec);
+    ok.style.display='block';
+    ok.innerHTML=`✅ Gate Pass <b>${rec.id}</b> created — ${path.join(' › ')} • ${name}.<br>Saved to the database (📋 Data Sheet).`;
+    btn.textContent='✓ Saved';
+  };
+  f.appendChild(btn); f.appendChild(ok); return f;
+}
+
+/* ===================== MANAGE: editable grid ===================== */
+let saveTimer=null;
+function queueSave(){
+  const tag=document.getElementById('saveTag'); if(tag) tag.textContent='Saving…';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async ()=>{ await API.saveStructure(GRID); if(tag) tag.textContent='✓ Saved'; },400);
+}
+function renderManage(){
+  const host=document.getElementById('manageView');
+  host.innerHTML=`<p class="section-title">⚙️ Manage Structure</p>
+    <p class="hint">Each <b>row</b> is one menu path. Each <b>column</b> is one level
+    (Col&nbsp;1 = Gate In/Out, Col&nbsp;2 = Person/Vehicle/Material, Col&nbsp;3 = Category…).
+    Edit any cell, add columns to go deeper, add rows for new options. Saved to the database.</p>
+    <div class="gridbar">
+      <button class="btn sm" onclick="addColumn()">＋ Add Column</button>
+      <button class="btn sm" onclick="addRow()">＋ Add Row</button>
+      <button class="navbtn" onclick="resetGrid()">↺ Reset to defaults</button>
+      <span id="saveTag"></span>
+    </div>
+    <div class="scroll"><table class="grid-t" id="gridTable"></table></div>`;
+  drawGrid();
+}
+function drawGrid(){
+  const t=document.getElementById('gridTable'); if(!t)return;
+  let html='<tr>';
+  GRID.headers.forEach((h,c)=>{
+    html+=`<th><div class="colhead">
+      <input class="hcell" data-c="${c}" value="${escAttr(h)}" placeholder="Column ${c+1}">
+      ${GRID.headers.length>1?`<button class="xbtn" title="Delete column" data-delc="${c}">🗑️</button>`:''}
+    </div></th>`;
+  });
+  html+='<th style="width:34px"></th></tr>';
+  GRID.rows.forEach((row,r)=>{
+    html+='<tr>';
+    GRID.headers.forEach((h,c)=>{
+      html+=`<td><input class="cell-input" data-r="${r}" data-c="${c}" value="${escAttr(row[c]||'')}" placeholder="—"></td>`;
+    });
+    html+=`<td><button class="xbtn" title="Delete row" data-delr="${r}">✕</button></td></tr>`;
+  });
+  t.innerHTML=html;
+  t.querySelectorAll('.hcell').forEach(inp=>inp.onchange=()=>{ GRID.headers[+inp.dataset.c]=inp.value; queueSave(); });
+  t.querySelectorAll('.cell-input').forEach(inp=>inp.onchange=()=>{
+    GRID.rows[+inp.dataset.r][+inp.dataset.c]=inp.value; queueSave(); });
+  t.querySelectorAll('[data-delc]').forEach(b=>b.onclick=()=>{
+    const c=+b.dataset.delc;
+    if(confirm(`Delete column "${GRID.headers[c]}"?`)){
+      GRID.headers.splice(c,1); GRID.rows.forEach(r=>r.splice(c,1)); queueSave(); drawGrid(); }});
+  t.querySelectorAll('[data-delr]').forEach(b=>b.onclick=()=>{
+    GRID.rows.splice(+b.dataset.delr,1); queueSave(); drawGrid(); });
+}
+function addColumn(){
+  const name=prompt('Name of new column (deeper level):','Sub Category');
+  if(name===null) return;
+  GRID.headers.push(name||('Column '+(GRID.headers.length+1)));
+  GRID.rows.forEach(r=>r.push(''));
+  queueSave(); drawGrid();
+}
+function addRow(){ GRID.rows.push(GRID.headers.map(()=>'')); queueSave(); drawGrid(); }
+async function resetGrid(){
+  if(!confirm('Reset the whole table to defaults?')) return;
+  GRID={headers:["Gate","Entry Type","Category"],rows:[
+    ["Gate In","Person Entry","Visitor"],["Gate In","Person Entry","Labour"],
+    ["Gate In","Person Entry","Employee"],["Gate In","Person Entry","Driver"],
+    ["Gate In","Vehicle Entry","Empty Vehicle"],["Gate In","Vehicle Entry","Loaded Vehicle"],
+    ["Gate In","Vehicle Entry","Transport Vehicle"],["Gate In","Material Entry","Raw Material"],
+    ["Gate In","Material Entry","Finished Goods"],["Gate In","Material Entry","Returnable Material"],
+    ["Gate In","Material Entry","Non-Returnable Material"],
+    ["Gate Out","Search Active Gate Pass",""],["Gate Out","Verify Person / Vehicle / Material",""],
+    ["Gate Out","Security Check",""],["Gate Out","Close Gate Pass",""]
+  ]};
+  await API.saveStructure(GRID); drawGrid();
+}
+function escAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+/* ===================== DATA SHEET ===================== */
+function renderSheet(){
+  const host=document.getElementById('sheetView');
+  const dirs=[...new Set(GRID.rows.map(r=>r[0]).filter(Boolean))];
+  const dirOpts=['<option value="">All gates</option>'].concat(dirs.map(d=>`<option>${d}</option>`)).join('');
+  const inside=RECORDS.filter(r=>r.status==='Inside').length;
+  host.innerHTML=`
+    <div class="stats">
+      <div class="stat"><div class="n">${RECORDS.length}</div><div class="l">Total Passes</div></div>
+      <div class="stat"><div class="n">${inside}</div><div class="l">Inside</div></div>
+      <div class="stat"><div class="n">${RECORDS.length-inside}</div><div class="l">Out</div></div>
+    </div>
+    <div class="toolbar">
+      <strong>📋 Data Sheet</strong>
+      <select id="f_dir">${dirOpts}</select>
+      <select id="f_status"><option value="">All status</option><option>Inside</option><option>Out</option></select>
+      <input id="f_search" placeholder="🔍 Search name / pass no…">
+      <span class="spacer"></span>
+      <span class="count">${RECORDS.length} record(s)</span>
+      <button class="navbtn" onclick="exportCSV()">⬇️ Export CSV</button>
+      <button class="navbtn" onclick="clearAll()" style="color:var(--danger)">🗑️ Clear</button>
+    </div>
+    <div class="scroll"><table class="sheet" id="sheetTable"></table></div>`;
+  const draw=()=>{
+    const fd=host.querySelector('#f_dir').value, fs=host.querySelector('#f_status').value;
+    const fq=host.querySelector('#f_search').value.toLowerCase();
+    let rows=RECORDS.filter(r=>(!fd||r.dir===fd)&&(!fs||r.status===fs)&&
+      (!fq||(r.name||'').toLowerCase().includes(fq)||r.id.toLowerCase().includes(fq)));
+    const t=host.querySelector('#sheetTable');
+    if(!rows.length){ t.innerHTML=`<tr><td><div class="empty">No records found. Add an entry from <b>➕ New Entry</b>.</div></td></tr>`; return; }
+    t.innerHTML=`<thead><tr><th>Gate Pass</th><th>Path</th><th>Name / Item</th><th>Date & Time</th><th>Status</th><th></th></tr></thead><tbody>`+
+      rows.map(r=>`<tr>
+        <td><b>${r.id}</b></td>
+        <td>${r.pathStr||[r.dir,r.type,r.category].filter(Boolean).join(' › ')}</td>
+        <td>${r.name||''}</td><td>${r.time}</td>
+        <td><span class="pill ${r.status==='Inside'?'open':'closed'}">${r.status}</span></td>
+        <td><span class="del" data-del="${r.id}">✕</span></td></tr>`).join('')+`</tbody>`;
+    t.querySelectorAll('[data-del]').forEach(b=>b.onclick=async ()=>{
+      await API.delRecord(b.dataset.del); RECORDS=await API.getRecords(); renderSheet(); });
+  };
+  ['f_dir','f_status'].forEach(id=>host.querySelector('#'+id).onchange=draw);
+  host.querySelector('#f_search').oninput=draw; draw();
+}
+async function clearAll(){ if(confirm('Delete ALL records?')){ await API.clearRecords(); RECORDS=await API.getRecords(); renderSheet(); } }
+function exportCSV(){
+  if(!RECORDS.length){alert('No records to export');return;}
+  const head=['Gate Pass','Path','Name/Item','Date & Time','Status'];
+  const lines=[head.join(',')].concat(RECORDS.map(r=>
+    [r.id,r.pathStr,r.name,r.time,r.status].map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gate_records.csv'; a.click();
+}
+
+/* ===================== theme ===================== */
+function applyTheme(t){
+  document.body.classList.toggle('light', t==='light');
+  const b=document.getElementById('themeBtn');
+  if(b) b.textContent = t==='light' ? '☀️' : '🌙';
+  localStorage.setItem('gms_theme', t);
+}
+function toggleTheme(){
+  applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+}
+
+/* ===================== init ===================== */
+(async function(){
+  applyTheme(localStorage.getItem('gms_theme') || 'dark');
+  GRID=await API.getStructure();
+  RECORDS=await API.getRecords();
+  showApp();
+})();
+</script>
+</body>
+</html>

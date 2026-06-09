@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gate Management</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --accent:#38bdf8; --accent2:#22c55e; --danger:#f87171;
+    --text:#e2e8f0; --muted:#94a3b8; --border:#334155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh;}
+  header{padding:16px 24px; background:var(--panel); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+  header h1{font-size:18px; margin:0; letter-spacing:.5px; flex:1}
+  .navbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px;}
+  .navbtn:hover{border-color:var(--accent)}
+  .navbtn.active{background:var(--accent); color:#04293a; border-color:var(--accent)}
+  .wrap{max-width:1050px; margin:0 auto; padding:24px}
+  .crumbs{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:14px; margin-bottom:22px}
+  .crumbs span{color:var(--muted)}
+  .crumbs a{color:var(--accent); cursor:pointer; text-decoration:none}
+  .crumbs a:hover{text-decoration:underline}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:26px 20px; cursor:pointer; transition:.15s; text-align:left; display:flex; flex-direction:column; gap:8px;}
+  .card:hover{transform:translateY(-3px); border-color:var(--accent); background:var(--panel2)}
+  .card .ic{font-size:30px}
+  .card .t{font-size:17px; font-weight:600}
+  .card .d{font-size:13px; color:var(--muted)}
+  .section-title{font-size:15px; color:var(--muted); margin:0 0 14px; text-transform:uppercase; letter-spacing:1px}
+  .back{background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; margin-bottom:18px;}
+  .back:hover{border-color:var(--accent)}
+  .form{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px; max-width:600px;}
+  .form h2{margin:0 0 4px; font-size:20px}
+  .form .sub{color:var(--muted); font-size:13px; margin-bottom:20px}
+  .field{margin-bottom:16px}
+  label{display:block; font-size:13px; margin-bottom:6px; color:var(--muted)}
+  input,select,textarea{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-size:14px; font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent)}
+  .btn{background:var(--accent); color:#04293a; border:none; padding:11px 20px; border-radius:8px;
+    font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;}
+  .btn.green{background:var(--accent2); color:#052e16}
+  .btn.sm{padding:7px 12px; font-size:13px; margin:0}
+  .btn:hover{filter:brightness(1.08)}
+  .ok{background:rgba(34,197,94,.12); border:1px solid var(--accent2); color:#86efac;
+    padding:12px 14px; border-radius:8px; margin-top:16px; font-size:14px; display:none;}
+  .pill{font-size:11px; padding:3px 9px; border-radius:99px; font-weight:600}
+  .pill.in{background:rgba(56,189,248,.15); color:var(--accent)}
+  .pill.out{background:rgba(248,113,113,.15); color:var(--danger)}
+  .pill.open{background:rgba(34,197,94,.15); color:#86efac}
+  .pill.closed{background:rgba(148,163,184,.18); color:var(--muted)}
+  .empty{padding:40px; text-align:center; color:var(--muted)}
+  .del{color:var(--danger); cursor:pointer; font-weight:700}
+  .scroll{overflow-x:auto; border-radius:12px}
+  .count{font-size:13px; color:var(--muted)}
+  .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px}
+  .toolbar select,.toolbar input{width:auto; min-width:150px}
+  .toolbar .spacer{flex:1}
+  /* data sheet table */
+  table.sheet{width:100%; border-collapse:collapse; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; overflow:hidden; font-size:13px}
+  table.sheet th,table.sheet td{padding:11px 14px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap}
+  table.sheet th{background:var(--panel2); color:var(--muted); text-transform:uppercase; font-size:11px; letter-spacing:.5px}
+  table.sheet tr:last-child td{border-bottom:none}
+  table.sheet tr:hover td{background:var(--panel2)}
+  /* manage grid */
+  table.grid-t{border-collapse:collapse; background:var(--panel); border:1px solid var(--border)}
+  table.grid-t th,table.grid-t td{border:1px solid var(--border); padding:4px}
+  table.grid-t th{background:var(--panel2)}
+  .colhead{display:flex; gap:6px; align-items:center; padding:4px}
+  .colhead input{font-weight:600; min-width:140px; text-transform:uppercase; font-size:12px; letter-spacing:.5px}
+  .cell-input{min-width:150px; border:1px solid transparent; background:transparent}
+  .cell-input:hover{border-color:var(--border)}
+  .cell-input:focus{border-color:var(--accent); background:var(--bg)}
+  .xbtn{background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:15px; padding:2px 6px}
+  .addcol-btn{writing-mode:vertical-rl; transform:rotate(180deg);}
+  .hint{font-size:12px; color:var(--muted); margin:0 0 16px}
+  .gridbar{display:flex; gap:10px; margin:14px 0; flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:22px">🛡️</span>
+  <h1>GATE MANAGEMENT SYSTEM</h1>
+  <button class="navbtn" id="nav-home" onclick="showApp()">➕ New Entry</button>
+  <button class="navbtn" id="nav-sheet" onclick="showSheet()">📋 Data Sheet</button>
+  <button class="navbtn" id="nav-manage" onclick="showManage()">⚙️ Manage</button>
+</header>
+
+<div class="wrap">
+  <div id="appView"><div class="crumbs" id="crumbs"></div><div id="view"></div></div>
+  <div id="sheetView" style="display:none"></div>
+  <div id="manageView" style="display:none"></div>
+</div>
+
+<script>
+/* ===================== STRUCTURE = an editable grid (table) =====================
+   Each ROW is one path through the menu. Each COLUMN is one level of the hierarchy.
+   col0 = Gate In / Gate Out, col1 = Person/Vehicle/Material, col2 = category, ...
+   You can add columns (deeper levels) and rows. The New-Entry menu is built from this. */
+const GRID_KEY='gms_grid';
+const DEFAULT_GRID={
+  headers:["Gate","Entry Type","Category"],
+  rows:[
+    ["Gate In","Person Entry","Visitor"],
+    ["Gate In","Person Entry","Labour"],
+    ["Gate In","Person Entry","Employee"],
+    ["Gate In","Person Entry","Driver"],
+    ["Gate In","Vehicle Entry","Empty Vehicle"],
+    ["Gate In","Vehicle Entry","Loaded Vehicle"],
+    ["Gate In","Vehicle Entry","Transport Vehicle"],
+    ["Gate In","Material Entry","Raw Material"],
+    ["Gate In","Material Entry","Finished Goods"],
+    ["Gate In","Material Entry","Returnable Material"],
+    ["Gate In","Material Entry","Non-Returnable Material"],
+    ["Gate Out","Search Active Gate Pass",""],
+    ["Gate Out","Verify Person / Vehicle / Material",""],
+    ["Gate Out","Security Check",""],
+    ["Gate Out","Close Gate Pass",""]
+  ]
+};
+function loadGrid(){ try{const g=JSON.parse(localStorage.getItem(GRID_KEY)); return (g&&g.headers)?g:DEFAULT_GRID;}catch(e){return DEFAULT_GRID;} }
+function saveGrid(){ localStorage.setItem(GRID_KEY,JSON.stringify(GRID)); }
+let GRID=loadGrid();
+
+/* distinct values for the column at depth=prefix.length, among rows matching prefix */
+function childValues(prefix){
+  const k=prefix.length;
+  if(k>=GRID.headers.length) return [];
+  const seen=[];
+  GRID.rows.forEach(r=>{
+    if(prefix.every((v,i)=>(r[i]||'')===v)){
+      const val=(r[k]||'').trim();
+      if(val && !seen.includes(val)) seen.push(val);
+    }
+  });
+  return seen;
+}
+
+/* ===================== records ===================== */
+const KEY='gms_records';
+function loadRecords(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []} }
+function saveRecords(r){ localStorage.setItem(KEY,JSON.stringify(r)) }
+function addRecord(rec){ const r=loadRecords(); r.unshift(rec); saveRecords(r); }
+function delRecord(id){ saveRecords(loadRecords().filter(x=>x.id!==id)); renderSheet(); }
+
+/* ===================== nav ===================== */
+let path=[]; // chosen values, one per column
+const view=document.getElementById('view');
+const crumbsEl=document.getElementById('crumbs');
+function go(p){ path=p; render(); }
+function setNav(a){
+  ['home','sheet','manage'].forEach(n=>document.getElementById('nav-'+n).classList.toggle('active',n===a));
+  document.getElementById('appView').style.display=a==='home'?'block':'none';
+  document.getElementById('sheetView').style.display=a==='sheet'?'block':'none';
+  document.getElementById('manageView').style.display=a==='manage'?'block':'none';
+}
+function showApp(){ setNav('home'); render(); }
+function showSheet(){ setNav('sheet'); renderSheet(); }
+function showManage(){ setNav('manage'); renderManage(); }
+
+function crumbs(){
+  const parts=[{label:"🏠 Home",p:[]}];
+  path.forEach((v,i)=>parts.push({label:v,p:path.slice(0,i+1)}));
+  crumbsEl.innerHTML=parts.map((x,i)=>{
+    const last=i===parts.length-1;
+    return last?`<span>${x.label}</span>`:`<a data-p='${JSON.stringify(x.p)}'>${x.label}</a><span>›</span>`;
+  }).join(' ');
+  crumbsEl.querySelectorAll('a').forEach(a=>a.onclick=()=>go(JSON.parse(a.dataset.p)));
+}
+function card(title,desc,onclick){
+  const el=document.createElement('div'); el.className='card';
+  el.innerHTML=`<div class="t">${title}</div><div class="d">${desc||''}</div>`;
+  el.onclick=onclick; return el;
+}
+function backBtn(target){
+  const b=document.createElement('button'); b.className='back'; b.textContent='← Back';
+  b.onclick=()=>go(target); return b;
+}
+function addTitle(txt){ const t=document.createElement('p'); t.className='section-title'; t.textContent=txt; view.appendChild(t); }
+
+function render(){
+  crumbs(); view.innerHTML='';
+  const kids=childValues(path);
+  if(kids.length){
+    if(path.length){ view.appendChild(backBtn(path.slice(0,-1))); }
+    const lvl=GRID.headers[path.length]||'Select';
+    addTitle((path.length?path[path.length-1]+' — ':'')+'choose '+lvl);
+    const g=document.createElement('div'); g.className='grid';
+    kids.forEach(k=>{
+      const sub=childValues([...path,k]);
+      const desc=sub.length?sub.join(", "):"Fill entry details";
+      g.appendChild(card(k,desc,()=>go([...path,k])));
+    });
+    view.appendChild(g);
+  } else {
+    // leaf -> form
+    view.appendChild(backBtn(path.slice(0,-1)));
+    view.appendChild(buildForm());
+  }
+}
+
+/* ===================== entry form (leaf) ===================== */
+const LEAF_FIELDS=[
+  {l:"Name / Item",req:true},{l:"Phone / Vehicle No.",},
+  {l:"ID / Reference No."},{l:"Details / Purpose"},
+];
+function buildForm(){
+  const f=document.createElement('div'); f.className='form';
+  f.innerHTML=`<h2>${path[path.length-1]||'Entry'}</h2><div class="sub">${path.join(' › ')} • New gate pass</div>`;
+  LEAF_FIELDS.forEach((fld,i)=>{
+    const w=document.createElement('div'); w.className='field';
+    w.innerHTML=`<label>${fld.l}${fld.req?' *':''}</label><input id="lf_${i}" placeholder="Enter ${fld.l.toLowerCase()}">`;
+    f.appendChild(w);
+  });
+  const tw=document.createElement('div'); tw.className='field';
+  tw.innerHTML=`<label>In Time</label><input type="datetime-local" id="lf_time">`; f.appendChild(tw);
+  const note=document.createElement('div'); note.className='field';
+  note.innerHTML=`<label>Remarks</label><textarea rows="2" id="lf_rem"></textarea>`; f.appendChild(note);
+
+  const btn=document.createElement('button'); btn.className='btn green'; btn.textContent='✓ Generate Gate Pass';
+  const ok=document.createElement('div'); ok.className='ok';
+  btn.onclick=()=>{
+    const name=document.getElementById('lf_0').value.trim();
+    if(!name){ alert('Please fill: '+LEAF_FIELDS[0].l); return; }
+    const id='GP'+Math.floor(100000+Math.random()*900000);
+    addRecord({
+      id, dir:path[0]||'', type:path[1]||'', category:path[path.length-1]||'',
+      pathStr:path.join(' › '), name, time:new Date().toLocaleString(),
+      status:(path[0]||'').toLowerCase().includes('out')?'Out':'Inside'
+    });
+    ok.style.display='block';
+    ok.innerHTML=`✅ Gate Pass <b>${id}</b> created — ${path.join(' › ')} • ${name}.<br>Saved to 📋 Data Sheet.`;
+    btn.textContent='✓ Saved'; btn.disabled=true; btn.style.opacity=.7;
+  };
+  f.appendChild(btn); f.appendChild(ok); return f;
+}
+
+/* ===================== MANAGE: editable grid (table) ===================== */
+function renderManage(){
+  const host=document.getElementById('manageView');
+  host.innerHTML=`<p class="section-title">⚙️ Manage Structure (Table)</p>
+    <p class="hint">Each <b>row</b> is one menu path. Each <b>column</b> is one level
+    (Col&nbsp;1 = Gate In/Out, Col&nbsp;2 = Person/Vehicle/Material, Col&nbsp;3 = Category…).
+    Edit any cell, add columns to go deeper, add rows for new options. Saved automatically.</p>
+    <div class="gridbar">
+      <button class="btn sm" onclick="addColumn()">＋ Add Column (deeper level)</button>
+      <button class="btn sm" onclick="addRow()">＋ Add Row</button>
+      <button class="navbtn" onclick="resetGrid()">↺ Reset to defaults</button>
+    </div>
+    <div class="scroll"><table class="grid-t" id="gridTable"></table></div>`;
+  drawGrid();
+}
+function drawGrid(){
+  const t=document.getElementById('gridTable'); if(!t)return;
+  // header row
+  let html='<tr>';
+  GRID.headers.forEach((h,c)=>{
+    html+=`<th><div class="colhead">
+      <input class="hcell" data-c="${c}" value="${escAttr(h)}" placeholder="Column ${c+1}">
+      ${GRID.headers.length>1?`<button class="xbtn" title="Delete column" data-delc="${c}">🗑️</button>`:''}
+    </div></th>`;
+  });
+  html+='<th style="width:34px"></th></tr>';
+  // body
+  GRID.rows.forEach((row,r)=>{
+    html+='<tr>';
+    GRID.headers.forEach((h,c)=>{
+      html+=`<td><input class="cell-input" data-r="${r}" data-c="${c}" value="${escAttr(row[c]||'')}" placeholder="—"></td>`;
+    });
+    html+=`<td><button class="xbtn" title="Delete row" data-delr="${r}">✕</button></td></tr>`;
+  });
+  t.innerHTML=html;
+  // wire events
+  t.querySelectorAll('.hcell').forEach(inp=>inp.onchange=()=>{ GRID.headers[+inp.dataset.c]=inp.value; saveGrid(); });
+  t.querySelectorAll('.cell-input').forEach(inp=>inp.onchange=()=>{
+    const r=+inp.dataset.r,c=+inp.dataset.c; GRID.rows[r][c]=inp.value; saveGrid(); });
+  t.querySelectorAll('[data-delc]').forEach(b=>b.onclick=()=>{
+    const c=+b.dataset.delc;
+    if(confirm(`Delete column "${GRID.headers[c]}"?`)){
+      GRID.headers.splice(c,1); GRID.rows.forEach(r=>r.splice(c,1)); saveGrid(); drawGrid(); }});
+  t.querySelectorAll('[data-delr]').forEach(b=>b.onclick=()=>{
+    GRID.rows.splice(+b.dataset.delr,1); saveGrid(); drawGrid(); });
+}
+function addColumn(){
+  const name=prompt('Name of new column (deeper level):','Sub Category');
+  if(name===null) return;
+  GRID.headers.push(name||('Column '+(GRID.headers.length+1)));
+  GRID.rows.forEach(r=>r.push(''));
+  saveGrid(); drawGrid();
+}
+function addRow(){ GRID.rows.push(GRID.headers.map(()=>'')); saveGrid(); drawGrid(); }
+function resetGrid(){ if(confirm('Reset the whole table to defaults?')){ GRID=JSON.parse(JSON.stringify(DEFAULT_GRID)); saveGrid(); drawGrid(); } }
+function escAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+/* ===================== DATA SHEET ===================== */
+function renderSheet(){
+  const host=document.getElementById('sheetView');
+  const recs=loadRecords();
+  const dirOpts=['<option value="">All</option>'].concat([...new Set(GRID.rows.map(r=>r[0]).filter(Boolean))].map(d=>`<option>${d}</option>`)).join('');
+  host.innerHTML=`
+    <div class="toolbar">
+      <strong style="font-size:16px">📋 Data Sheet</strong>
+      <select id="f_dir">${dirOpts}</select>
+      <select id="f_status"><option value="">All status</option><option>Inside</option><option>Out</option></select>
+      <input id="f_search" placeholder="Search name / pass no…">
+      <span class="spacer"></span>
+      <span class="count">${recs.length} record(s)</span>
+      <button class="navbtn" onclick="exportCSV()">⬇️ Export CSV</button>
+      <button class="navbtn" onclick="clearAll()" style="color:var(--danger)">🗑️ Clear</button>
+    </div>
+    <div class="scroll"><table class="sheet" id="sheetTable"></table></div>`;
+  const draw=()=>{
+    const fd=host.querySelector('#f_dir').value, fs=host.querySelector('#f_status').value;
+    const fq=host.querySelector('#f_search').value.toLowerCase();
+    let rows=loadRecords().filter(r=>(!fd||r.dir===fd)&&(!fs||r.status===fs)&&
+      (!fq||(r.name||'').toLowerCase().includes(fq)||r.id.toLowerCase().includes(fq)));
+    const t=host.querySelector('#sheetTable');
+    if(!rows.length){ t.innerHTML=`<tr><td><div class="empty">No records yet. Add an entry from <b>➕ New Entry</b>.</div></td></tr>`; return; }
+    t.innerHTML=`<tr><th>Gate Pass</th><th>Path</th><th>Name / Item</th><th>Date & Time</th><th>Status</th><th></th></tr>`+
+      rows.map(r=>`<tr>
+        <td><b>${r.id}</b></td>
+        <td>${r.pathStr||[r.dir,r.type,r.category].filter(Boolean).join(' › ')}</td>
+        <td>${r.name||''}</td><td>${r.time}</td>
+        <td><span class="pill ${r.status==='Inside'?'open':'closed'}">${r.status}</span></td>
+        <td><span class="del" onclick="delRecord('${r.id}')">✕</span></td></tr>`).join('');
+  };
+  ['f_dir','f_status'].forEach(id=>host.querySelector('#'+id).onchange=draw);
+  host.querySelector('#f_search').oninput=draw; draw();
+}
+function clearAll(){ if(confirm('Delete ALL records?')){ saveRecords([]); renderSheet(); } }
+function exportCSV(){
+  const recs=loadRecords(); if(!recs.length){alert('No records to export');return;}
+  const head=['Gate Pass','Path','Name/Item','Date & Time','Status'];
+  const lines=[head.join(',')].concat(recs.map(r=>
+    [r.id,r.pathStr,r.name,r.time,r.status].map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gate_records.csv'; a.click();
+}
+
+/* init */
+showApp();
+</script>
+</body>
+</html>
