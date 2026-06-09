@@ -69,7 +69,7 @@
   /* ---------- full-page gate background (Home only) ---------- */
   #bgImage{
     position:fixed; inset:0; z-index:-2; background-size:cover; background-position:center;
-    background-image:url('/static/gate/gate.jpg');
+    background-image:url('{{ url_prefix }}/static/gate/gate.jpg');
     opacity:0; transition:opacity .5s ease; pointer-events:none;
   }
   #bgImage::after{ /* veil so text stays readable */
@@ -227,14 +227,15 @@
 
 <script>
 /* ===================== API layer (Django + Postgres) ===================== */
+const PREFIX = "{{ url_prefix }}";
 const API = {
-  async getStructure(){ const r=await fetch('/api/structure'); return r.json(); },
-  async saveStructure(s){ await fetch('/api/structure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s)}); },
-  async getRecords(){ const r=await fetch('/api/records'); return (await r.json()).records; },
-  async addRecord(rec){ const r=await fetch('/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}); return r.json(); },
-  async delRecord(id){ await fetch('/api/records/'+encodeURIComponent(id),{method:'DELETE'}); },
-  async closeRecord(id){ const r=await fetch('/api/records/'+encodeURIComponent(id),{method:'POST'}); return r.json(); },
-  async clearRecords(){ await fetch('/api/records/clear',{method:'POST'}); },
+  async getStructure(){ const r=await fetch(PREFIX+'/api/structure'); return r.json(); },
+  async saveStructure(s){ await fetch(PREFIX+'/api/structure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s)}); },
+  async getRecords(){ const r=await fetch(PREFIX+'/api/records'); return (await r.json()).records; },
+  async addRecord(rec){ const r=await fetch(PREFIX+'/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)}); return r.json(); },
+  async delRecord(id){ await fetch(PREFIX+'/api/records/'+encodeURIComponent(id),{method:'DELETE'}); },
+  async closeRecord(id){ const r=await fetch(PREFIX+'/api/records/'+encodeURIComponent(id),{method:'POST'}); return r.json(); },
+  async clearRecords(){ await fetch(PREFIX+'/api/records/clear',{method:'POST'}); },
 };
 
 let GRID={headers:[],rows:[]};

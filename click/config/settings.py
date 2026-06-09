@@ -13,6 +13,12 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'insecure-dev-key')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes')
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
 
+# When the app is served under a sub-path (e.g. https://teamboard.jivo.in/gate/)
+# set SCRIPT_PREFIX=/gate so generated URLs and the front-end fetch/static paths
+# are prefixed. Empty (default) serves the app at the domain root.
+SCRIPT_PREFIX = os.environ.get('SCRIPT_PREFIX', '').rstrip('/')
+FORCE_SCRIPT_NAME = SCRIPT_PREFIX or None
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -88,7 +94,7 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = f'{SCRIPT_PREFIX}/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 

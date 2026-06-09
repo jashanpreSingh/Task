@@ -1,6 +1,7 @@
 import json
 import random
 
+from django.conf import settings
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound
 from django.shortcuts import render
 from django.utils import timezone
@@ -10,7 +11,9 @@ from .models import GatePass, Structure
 
 
 def index(request):
-    return render(request, 'gate/index.html')
+    # url_prefix lets the front-end build correct /api and /static paths when the
+    # app is mounted under a sub-path (e.g. /gate). Empty when served at root.
+    return render(request, 'gate/index.html', {'url_prefix': settings.SCRIPT_PREFIX})
 
 
 # ---------------- structure (menu grid) ----------------

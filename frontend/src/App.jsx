@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000/api`
-const GATE_URL = import.meta.env.VITE_GATE_URL || `${window.location.protocol}//${window.location.hostname}:8731/`
+// Same-origin path where the gate app is mounted in production (nginx -> gate gunicorn).
+// For local dev the gate runs on its own port, so set VITE_GATE_URL=http://127.0.0.1:8731/
+const GATE_URL = import.meta.env.VITE_GATE_URL || '/gate/'
 const roleFilterOptions = ['All', 'Admin', 'Manager', 'Member']
 const statuses = ['Backlog', 'In Progress', 'Blocked', 'Done']
 const errorStatuses = ['Open', 'Fixing', 'Resolved']
