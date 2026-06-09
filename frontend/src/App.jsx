@@ -445,6 +445,7 @@ function App() {
   const [isReviewDeskOpen, setIsReviewDeskOpen] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isItRegisterOpen, setIsItRegisterOpen] = useState(false)
+  const [isGateOpen, setIsGateOpen] = useState(false)
   const [isLearningDeskOpen, setIsLearningDeskOpen] = useState(false)
   const [filterRole, setFilterRole] = useState('All')
   const [upcomingProjectFilter, setUpcomingProjectFilter] = useState('all')
@@ -1645,7 +1646,7 @@ function App() {
             </div>
             {user.role === 'Admin' ? (
               <>
-                <button className="gate-button" type="button" onClick={() => window.open(GATE_URL, '_blank', 'noopener')}>
+                <button className="gate-button" type="button" onClick={() => setIsGateOpen(true)}>
                   Gate
                 </button>
                 <button className="it-register-button" type="button" onClick={openItRegister}>
@@ -2257,6 +2258,18 @@ function App() {
           </div>
         </section>
       </section>
+      ) : null}
+
+      {isGateOpen ? (
+        <div className="gate-view" role="dialog" aria-modal="true" aria-label="Gate Management">
+          <div className="gate-view-bar">
+            <button type="button" className="gate-back-button" onClick={() => setIsGateOpen(false)}>
+              ← Back to Team Board
+            </button>
+            <span className="gate-view-title">JIVO Gate Management</span>
+          </div>
+          <iframe className="gate-frame" src={GATE_URL} title="JIVO Gate Management" />
+        </div>
       ) : null}
 
       {isReviewDeskOpen ? (

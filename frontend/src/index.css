@@ -587,6 +587,52 @@ textarea:focus {
   background: #ecfccb;
 }
 
+.gate-view {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1, #ffffff);
+}
+
+.gate-view-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: var(--surface-2, #f8fafc);
+}
+
+.gate-back-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  color: #166534;
+  background: #ecfccb;
+  font-size: 0.8rem;
+  font-weight: 830;
+  cursor: pointer;
+}
+
+.gate-back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.gate-view-title {
+  font-weight: 700;
+  color: var(--text-strong, #0f172a);
+}
+
+.gate-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+}
+
 .header-actions .it-register-button {
   color: #854d0e;
   background: #fffbeb;

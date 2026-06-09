@@ -30,7 +30,19 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Allow embedding in Team Board (cross-origin) via CSP frame-ancestors
+    # instead of X-Frame-Options DENY.
+    'config.middleware.FrameAncestorsMiddleware',
+]
+
+# Parents allowed to embed the gate app in an iframe (the Team Board origins).
+GATE_FRAME_ANCESTORS = [
+    h.strip()
+    for h in os.environ.get(
+        'GATE_FRAME_ANCESTORS',
+        "'self' http://localhost:5173 http://127.0.0.1:5173 https://teamboard.jivo.in",
+    ).split()
+    if h.strip()
 ]
 
 ROOT_URLCONF = 'config.urls'
