@@ -54,7 +54,11 @@ jobs:
 
       - name: Upload project
         run: |
-          rsync -az --delete \
+          # Retry rsync so a transient SSH drop does not fail the whole deploy.
+          # --partial resumes, --timeout aborts a stalled transfer, keepalives
+          # detect a dead connection quickly.
+          n=0
+          until rsync -az --delete --partial --timeout=120 \
             --exclude ".git" \
             --exclude ".github" \
             --exclude ".env" \
@@ -63,29 +67,49 @@ jobs:
             --exclude "frontend/node_modules" \
             --exclude "backend/staticfiles" \
             --exclude "click/staticfiles" \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"
+            -e "ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
+            ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"; do
+            n=$((n + 1))
+            if [ "$n" -ge 3 ]; then
+              echo "rsync failed after $n attempts (server unreachable or out of disk?)"
+              exit 1
+            fi
+            echo "rsync attempt $n failed; retrying in 15s..."
+            sleep 15
+          done
 
       - name: Run server deploy commands
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" "
-            cd '${{ secrets.SERVER_PATH }}' &&
-            python3 -m venv .venv &&
-            . .venv/bin/activate &&
-            pip install --upgrade pip &&
-            pip install -r backend/requirements.txt &&
-            cd backend &&
-            python manage.py migrate --noinput &&
-            python manage.py collectstatic --noinput &&
-            cd '${{ secrets.SERVER_PATH }}/click' &&
-            python3 -m venv .venv &&
-            . .venv/bin/activate &&
-            pip install --upgrade pip &&
-            pip install -r requirements.txt &&
-            python manage.py migrate --noinput &&
-            python manage.py collectstatic --noinput &&
-            sudo systemctl restart teamboard &&
-            sudo systemctl restart gate &&
-            sudo nginx -t &&
-            sudo systemctl reload nginx
-          "
+          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=15 \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" bash -s <<'REMOTE'
+          set -euo pipefail
+          ROOT="${{ secrets.SERVER_PATH }}"
+
+          # --- Team Board backend ---
+          cd "$ROOT"
+          [ -d .venv ] || python3 -m venv .venv          # create venv only once
+          . .venv/bin/activate
+          # --no-cache-dir keeps pip from filling the server disk over time
+          pip install --upgrade pip --no-cache-dir
+          pip install -r backend/requirements.txt --no-cache-dir
+          cd backend
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+          deactivate
+
+          # --- JIVO Gate app (served at /gate/) ---
+          cd "$ROOT/click"
+          [ -d .venv ] || python3 -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip --no-cache-dir
+          pip install -r requirements.txt --no-cache-dir
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+          deactivate
+
+          # --- restart services ---
+          sudo systemctl restart teamboard
+          sudo systemctl restart gate
+          sudo nginx -t
+          sudo systemctl reload nginx
+          REMOTE
