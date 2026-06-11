@@ -3,15 +3,15 @@ Description=JIVO Gate Management (Django)
 After=network.target
 
 [Service]
-User=www-data
+User=superadmin
 Group=www-data
-WorkingDirectory=/var/www/teamboard/click
-# Served under /gate/ behind nginx.
+WorkingDirectory=/home/superadmin/django_projects/Task/click
+# Served under /gate/; nginx strips the prefix, SCRIPT_PREFIX restores it for URL generation.
 Environment=SCRIPT_PREFIX=/gate
-# Optional: a gate-specific .env. If absent, settings.py falls back to the
-# Team Board project .env (../.env) for DB credentials.
-EnvironmentFile=-/var/www/teamboard/click/.env
-ExecStart=/var/www/teamboard/click/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8731 --workers 3 --timeout 60
+# Reuse the Team Board project .env (DB creds, ALLOWED_HOSTS). settings.py also
+# loads ../.env directly, so this is optional (leading '-').
+EnvironmentFile=-/home/superadmin/django_projects/Task/.env
+ExecStart=/home/superadmin/django_projects/Task/click/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8731 --workers 3 --timeout 60
 Restart=always
 RestartSec=5
 
